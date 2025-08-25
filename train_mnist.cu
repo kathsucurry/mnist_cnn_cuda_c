@@ -10,10 +10,10 @@
 #include "includes/cnn_layers.cuh"
 
 
-#define LEARNING_RATE 0.01
+#define LEARNING_RATE 0.05
 #define POOL_KERNEL_LENGTH 2
 #define POOL_TYPE MAX
-#define NUM_EPOCHS 6
+#define NUM_EPOCHS 10
 // The loss and accuracy of the validation set will be computed every NUM_VALID_ITER epochs.
 #define NUM_EPOCHS_VALID_ITER 2 
 
@@ -162,11 +162,6 @@ NetworkWeights *train_model(ImageDataset *dataset) {
     ImageDataset *train = split_dataset(dataset, 0, num_train_samples, false);
     ImageDataset *valid = split_dataset(dataset, num_train_samples, num_train_samples + num_valid_samples, true);
 
-    if (!train || !valid) {
-        printf("Error in dataset split.");
-        return NULL;
-    }
-
     // Prepare the model architecture that includes one conv2d and one linear layers.
     // Initialize conv and linear layer weights using device memory.
     NetworkWeights *network_weights = (NetworkWeights *)malloc_check(sizeof(NetworkWeights));
@@ -211,6 +206,7 @@ NetworkWeights *train_model(ImageDataset *dataset) {
             );
             printf("--> valid loss: %.3f | accuracy: %.3f%%\n", valid_epoch_output.loss, valid_epoch_output.accuracy_percent);
         }
+        printf("\n");
     }
     
     cudaFree(X_d);
@@ -220,6 +216,34 @@ NetworkWeights *train_model(ImageDataset *dataset) {
     free_dataset(valid);
 
     return network_weights;
+}
+
+
+void evaluate_model(ImageDataset *dataset, NetworkWeights *network_weights) {
+    uint32_t image_size = dataset->images[0].height * dataset->images[1].height;
+    
+    float X[BATCH_SIZE * image_size];
+    uint8_t y[BATCH_SIZE * LABEL_SIZE];
+
+    float *X_d;
+    uint8_t *y_d;
+
+    gpu_error_check(cudaMalloc((void**)&X_d, BATCH_SIZE * image_size * sizeof(float)));
+    gpu_error_check(cudaMalloc((void**)&y_d, BATCH_SIZE * LABEL_SIZE * sizeof(uint8_t)));
+
+    EpochOutput test_output = run_one_epoch(
+        dataset,
+        X, y,
+        X_d, y_d,
+        network_weights,
+        false,
+        true
+    );
+
+    printf("Test accuracy: %.3f%%\n", test_output.accuracy_percent);
+
+    cudaFree(X_d);
+    cudaFree(y_d);
 }
 
 
@@ -237,10 +261,15 @@ int main() {
     free_dataset(transformed_train_dataset);
 
     // Run evaluation on the test set.
-    // MNISTDataset *test_dataset = load_mnist_dataset(
-    //     "Study/Dataset/mnist/t10k-images-idx3-ubyte",
-    //     "Study/Dataset/mnist/t10k-labels-idx1-ubyte"
-    // );
+    MNISTDataset *test_dataset = load_mnist_dataset(
+        "data/t10k-images-idx3-ubyte",
+        "data/t10k-labels-idx1-ubyte"
+    );
+    printf("[INFO] # Samples in test set: %d\n", test_dataset->num_samples);
+    ImageDataset *transformed_test_dataset = preprocess_images(test_dataset);
+    free_MNIST_dataset(test_dataset);
+
+    evaluate_model(transformed_test_dataset, model_weights);
 
     free_network_weights(model_weights);
 }
