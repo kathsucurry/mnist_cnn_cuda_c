@@ -69,6 +69,7 @@ typedef struct {
     LayerGradients *gradients;
     uint32_t num_layers;
     Tensor *output;
+    float *layer_durations_ms; // Time taken by each layer in milliseconds.
 } NetworkOutputs;
 
 
@@ -176,8 +177,9 @@ Tensor *initialize_linear_layer_weights(uint32_t in_features, uint32_t out_featu
  * @param filters The filter tensor with dimension [out_channels, in_channels, filter_length, filter_length].
  * @param grad The gradient tensor for storing W and X; dW and dX will be computed during backward pass.
  * @param compute_grad Whether to compute the gradients (e.g., it's not needed for evaluation purposes).
+ * @return The total runtime of the kernel run.
  */
-void run_conv2d_forward(Tensor *X, Tensor *filters, LayerGradients *grad, bool compute_grad);
+float run_conv2d_forward(Tensor *X, Tensor *filters, LayerGradients *grad, bool compute_grad);
 
 
 /**
@@ -198,8 +200,9 @@ void run_conv2d_backward(Tensor *conv2d_weights, LayerGradients *grad, LayerGrad
  * @param X The input tensor, to be updated in-place with the output of the sigmoid function.
  * @param grad The gradient tensor for storing the layer's dX.
  * @param compute_grad Whether to compute the gradients (e.g., it's not needed for evaluation purposes).
+ * @return The total runtime of the kernel run.
  */
-void run_sigmoid_forward(Tensor *X, LayerGradients *grad, bool compute_grad);
+float run_sigmoid_forward(Tensor *X, LayerGradients *grad, bool compute_grad);
 
 
 /**
@@ -220,8 +223,9 @@ void run_sigmoid_backward(LayerGradients *grad, LayerGradients *next_layer_grad)
  * @param pool_type Either MAX or MEAN pooling.
  * @param grad The gradient tensor for storing the layer's dX.
  * @param compute_grad Whether to compute the gradients (e.g., it's not needed for evaluation purposes).
+ * @return The total runtime of the kernel run.
  */
-void run_pooling_forward(Tensor *X, uint32_t kernel_length, pooling_type pool_type, LayerGradients *grad, bool compute_grad);
+float run_pooling_forward(Tensor *X, uint32_t kernel_length, pooling_type pool_type, LayerGradients *grad, bool compute_grad);
 
 
 /**
@@ -239,8 +243,9 @@ void run_pooling_backward(uint32_t kernel_length, LayerGradients *grad, LayerGra
  * 
  * @param X The input tensor. It will be replaced with a [num_samples, size]-dimensional tensor where size = the
  *  input tensor size / num_samples.
+ * @return The total runtime of the kernel run.
  */
-void run_flatten_forward(Tensor *X);
+float run_flatten_forward(Tensor *X);
 
 
 /**
@@ -263,8 +268,9 @@ void run_flatten_backward(uint32_t num_samples, uint8_t kernel_length, LayerGrad
  * @param linear_weights The weights of the linear layer with dimension [out_features, in_features].
  * @param grad The gradient tensor for storing dW and dX, which is essentially X and W, respectively.
  * @param compute_grad Whether to compute the gradients (e.g., it's not needed for evaluation purposes).
+ * @return The total runtime of the kernel run.
  */
-void run_linear_forward(Tensor *X, Tensor *linear_weights, LayerGradients *grad, bool compute_grad);
+float run_linear_forward(Tensor *X, Tensor *linear_weights, LayerGradients *grad, bool compute_grad);
 
 
 /**
@@ -285,8 +291,9 @@ void run_linear_backward(Tensor *linear_weights, LayerGradients *grad, LayerGrad
  * @param y_d The one-hot encodings of the labels, to be used for computing gradients.
  * @param grad The gradient tensor for storing the layer's dX.
  * @param compute_grad Whether to compute the gradients (e.g., it's not needed for evaluation purposes).
+ * @return The total runtime of the kernel run.
  */
-void run_softmax_forward(Tensor *X, uint8_t *y_d, LayerGradients *grad, bool compute_grad);
+float run_softmax_forward(Tensor *X, uint8_t *y_d, LayerGradients *grad, bool compute_grad);
 
 
 /**

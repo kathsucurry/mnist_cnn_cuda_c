@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <math.h>
+#include <time.h>
 #include <cuda_runtime.h>
 
 #include "includes/data_loader.cuh"
@@ -13,7 +14,7 @@
 #define LEARNING_RATE 0.05
 #define POOL_KERNEL_LENGTH 2
 #define POOL_TYPE MAX
-#define NUM_EPOCHS 10
+#define NUM_EPOCHS 2
 // The loss and accuracy of the validation set will be computed every NUM_VALID_ITER epochs.
 #define NUM_EPOCHS_VALID_ITER 2 
 
@@ -36,7 +37,8 @@ NetworkOutputs *forward_pass(
 ) {
     uint8_t num_layers_with_grads = 6;
     LayerGradients *gradients = (LayerGradients *)malloc_check(num_layers_with_grads * sizeof(LayerGradients));
-    
+    float *layers_durations_ms = (float *)malloc_check(num_layers_with_grads * sizeof(float));
+
     uint32_t *image_dim = (uint32_t *)malloc_check(4 * sizeof(uint32_t));
     image_dim[0] = num_samples;
     image_dim[1] = 1; // Number of channels.
@@ -45,27 +47,28 @@ NetworkOutputs *forward_pass(
     Tensor *output = generate_tensor(X_d, image_dim, 4);
     
     // Layer 0: 2D convolution layer.
-    run_conv2d_forward(output, network_weights_d->conv2d_weight, &gradients[0], compute_grad);
+    layers_durations_ms[0] = run_conv2d_forward(output, network_weights_d->conv2d_weight, &gradients[0], compute_grad);
 
     // Layer 1: Sigmoid activation.
-    run_sigmoid_forward(output, &gradients[1], compute_grad);
+    layers_durations_ms[1] = run_sigmoid_forward(output, &gradients[1], compute_grad);
 
     // Layer 2: Max pooling layer.
-    run_pooling_forward(output, POOL_KERNEL_LENGTH, POOL_TYPE, &gradients[2], compute_grad);
+    layers_durations_ms[2] = run_pooling_forward(output, POOL_KERNEL_LENGTH, POOL_TYPE, &gradients[2], compute_grad);
     
     // Layer 3: Convert into 1D vector; no grads created.
-    run_flatten_forward(output);
+    layers_durations_ms[3] = run_flatten_forward(output);
 
     // Layer 4: Linear layer.
-    run_linear_forward(output, network_weights_d->linear_weight, &gradients[4], compute_grad);
+    layers_durations_ms[4] = run_linear_forward(output, network_weights_d->linear_weight, &gradients[4], compute_grad);
 
     // Layer 5: Softmax layer.
-    run_softmax_forward(output, y_d, &gradients[5], compute_grad);
+    layers_durations_ms[5] = run_softmax_forward(output, y_d, &gradients[5], compute_grad);
 
     NetworkOutputs *network_outputs = (NetworkOutputs *)malloc_check(sizeof(NetworkOutputs));
     network_outputs->gradients = gradients;
     network_outputs->output = output;
     network_outputs->num_layers = 6;
+    network_outputs->layer_durations_ms = layers_durations_ms;
 
     return network_outputs;
 }
@@ -97,7 +100,8 @@ EpochOutput run_one_epoch(
     float *X_d, uint8_t *y_d,
     NetworkWeights *network_weights,
     bool update_weight,
-    bool compute_accuracy
+    bool compute_accuracy,
+    bool print_time_per_layer
 ) {
     uint32_t num_samples = dataset->num_samples;
     uint32_t num_batches = ceil(num_samples * 1.0 / BATCH_SIZE);
@@ -106,9 +110,11 @@ EpochOutput run_one_epoch(
     uint32_t image_width = dataset->images[0].width;
     uint32_t image_size = image_height * image_width;
 
+    EpochOutput epoch_output;
     float loss_sum = 0.0f;
     uint32_t correct_pred_sum = 0;
-    EpochOutput epoch_output;
+    float *total_layers_durations_ms;
+    uint32_t num_layers = 0;
 
     for (uint32_t batch_index = 0; batch_index < num_batches; ++batch_index) {
         uint32_t num_samples_in_batch = min(num_samples - batch_index * BATCH_SIZE, BATCH_SIZE);
@@ -127,7 +133,19 @@ EpochOutput run_one_epoch(
             num_samples_in_batch,
             update_weight
         );
-            
+
+        // Get average time taken by each layer in the forward pass; ignore the first batch due to warm-up.
+        if (batch_index != 0) {
+            if (batch_index == 1) {
+                num_layers = network_outputs->num_layers;
+                total_layers_durations_ms = (float *)calloc(num_layers, sizeof(float));
+            }
+
+            for (uint32_t layer_index = 0; layer_index < network_outputs->num_layers; ++layer_index) {
+                total_layers_durations_ms[layer_index] += network_outputs->layer_durations_ms[layer_index];
+            }
+        }
+
         float *loss = compute_negative_log_likelihood_log_loss(network_outputs->output, y_d);
         loss_sum += *loss;
 
@@ -144,6 +162,16 @@ EpochOutput run_one_epoch(
 
     epoch_output.loss = loss_sum;
     epoch_output.accuracy_percent = correct_pred_sum * 1.0 / num_samples * 100;
+
+    if (print_time_per_layer && num_batches > 1) {
+        printf("Time taken per layer in the forward pass (ms):\n");
+        for (uint32_t layer_index = 0; layer_index < num_layers; ++layer_index) {
+            // Recall that we ignore the first batch, so divide by (num_batches - 1).
+            printf(">>> Layer %u | total: %10.3f ms | average: %10.3f ms \n", layer_index, total_layers_durations_ms[layer_index], total_layers_durations_ms[layer_index] / (num_batches - 1));
+        }
+        printf("\n");
+    }
+    free(total_layers_durations_ms);
 
     return epoch_output;
 }
@@ -182,6 +210,7 @@ NetworkWeights *train_model(ImageDataset *dataset) {
     gpu_error_check(cudaMalloc((void**)&y_d, BATCH_SIZE * LABEL_SIZE * sizeof(uint8_t)));
 
     for (uint32_t epoch_index = 0; epoch_index < NUM_EPOCHS; ++epoch_index) {
+        printf("Epoch %u:\n", epoch_index);
         // Run training.
         shuffle_indices(train, epoch_index);
         EpochOutput train_epoch_output = run_one_epoch(
@@ -190,10 +219,11 @@ NetworkWeights *train_model(ImageDataset *dataset) {
             X_d, y_d,
             network_weights,
             true,
-            false
+            false,
+            epoch_index == 0
         );
 
-        printf("Epoch %u:\n--> train loss: %.3f\n", epoch_index, train_epoch_output.loss);
+        printf("Train loss: %.3f\n", train_epoch_output.loss);
         if (epoch_index > 0 && (epoch_index - 1) % NUM_EPOCHS_VALID_ITER == 0) {
             // Run forward pass on validation set.
             EpochOutput valid_epoch_output = run_one_epoch(
@@ -202,9 +232,10 @@ NetworkWeights *train_model(ImageDataset *dataset) {
                 X_d, y_d,
                 network_weights,
                 false,
-                true
+                true,
+                false
             );
-            printf("--> valid loss: %.3f | accuracy: %.3f%%\n", valid_epoch_output.loss, valid_epoch_output.accuracy_percent);
+            printf("Valid loss: %.3f | accuracy: %.3f%%\n", valid_epoch_output.loss, valid_epoch_output.accuracy_percent);
         }
         printf("\n");
     }
@@ -220,7 +251,7 @@ NetworkWeights *train_model(ImageDataset *dataset) {
 
 
 void evaluate_model(ImageDataset *dataset, NetworkWeights *network_weights) {
-    uint32_t image_size = dataset->images[0].height * dataset->images[1].height;
+    uint32_t image_size = dataset->images[0].height * dataset->images[0].height;
     
     float X[BATCH_SIZE * image_size];
     uint8_t y[BATCH_SIZE * LABEL_SIZE];
@@ -237,7 +268,8 @@ void evaluate_model(ImageDataset *dataset, NetworkWeights *network_weights) {
         X_d, y_d,
         network_weights,
         false,
-        true
+        true,
+        false
     );
 
     printf("Test accuracy: %.3f%%\n", test_output.accuracy_percent);

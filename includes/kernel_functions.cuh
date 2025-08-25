@@ -4,7 +4,7 @@
 
 #include <stdint.h>
 
-#define TILE_WIDTH 32
+#define TILE_WIDTH 16
 #define THREAD_COARSENING_FACTOR 8
 #define eps 1e-6
 
