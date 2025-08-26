@@ -11,3 +11,7 @@
 
 # Ignore all the downloaded data files.
 data/*
+
+build/
+
+.vscode/

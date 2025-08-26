@@ -49,6 +49,17 @@ The model architecture currently consists of the following layers:
 
 It then takes the logarithm of the softmax output and performs **negative log-likelihood** to compute the loss. Note that log softmax + NLL Loss is essentially **cross-entropy loss**.
 
+Tons of improvements can certainly be made to the model architecture/training, including but not limited to:
+
+- using a better dataset split method: use randomization or split by distribution assuming that the training set distribution reflects the test set distribution
+- replacing sigmoid activation with ReLU
+- adding batch normalization
+- implementing early stopping
+- using learning rate decay
+- **using a more reliable evaluation metric** instead of accuracy.
+
+These improvements are currently not a priority as this project's main goal is for C and CUDA programming practice.
+
 ### Tests
 
 More info on the tests can be found in the test README file.
@@ -61,12 +72,19 @@ More info on the tests can be found in the test README file.
 The train dataset is splitted into training (n=36000) and validation (n=24000).
 Epoch 0:
 Time taken per layer in the forward pass (ms):
->>> Layer 0 | total:    124.700 ms | average:      0.891 ms 
->>> Layer 1 | total:     24.017 ms | average:      0.172 ms 
->>> Layer 2 | total:     22.552 ms | average:      0.161 ms 
+>>> Layer 0 | total:     66.314 ms | average:      0.474 ms 
+>>> Layer 1 | total:     24.063 ms | average:      0.172 ms 
+>>> Layer 2 | total:     22.530 ms | average:      0.161 ms 
 >>> Layer 3 | total:      0.000 ms | average:      0.000 ms 
->>> Layer 4 | total:     22.424 ms | average:      0.160 ms 
->>> Layer 5 | total:      3.293 ms | average:      0.024 ms 
+>>> Layer 4 | total:     24.590 ms | average:      0.176 ms 
+>>> Layer 5 | total:      3.372 ms | average:      0.024 ms 
+
+Time taken per layer in the backward pass (ms):
+>>> Layer 0 | total:   1947.216 ms | average:     13.909 ms 
+>>> Layer 1 | total:     24.899 ms | average:      0.178 ms 
+>>> Layer 2 | total:     20.287 ms | average:      0.145 ms 
+>>> Layer 3 | total:      0.000 ms | average:      0.000 ms 
+>>> Layer 4 | total:     45.685 ms | average:      0.326 ms 
 
 Train loss: 610.436
 
@@ -108,6 +126,6 @@ Test accuracy: 90.520%
 
 ## Future improvements
 
-The implementation of the CUDA kernels are still naive and may be slow. Further optimizations (or even moving the computation to CPU if using GPU is not necessary) will be done.
+The implementation of the CUDA kernels are still naive and may be slow. Further optimizations (or even moving the computation to CPU if using GPU is not necessary) will be done, e.g. optimizing `dW` computation, which currently takes >12 ms on average.
 
-Optimizing the model architecture and training (e.g., adding ReLU, batch normalization, early stopping, using better evaluation metric, etc) is currently not the priority.
+As mentioned above, optimizing the model architecture and training is currently not the priority.

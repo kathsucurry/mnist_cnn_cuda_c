@@ -96,6 +96,24 @@ float *_uniform_xavier_initialization(uint32_t fan_in, uint32_t fan_out, uint32_
 }
 
 
+cudaError_t update_conv2d_const_filters(float *filters_d, uint32_t size) {
+    return cudaMemcpyToSymbol(const_conv2d_filters, filters_d, size * sizeof(float), 0, cudaMemcpyDeviceToDevice);
+}
+
+
+/**
+ * Store filter weights in the constant variable.
+ * 
+ * Here, we only assume one convolutional layer. To further expand this, we can
+ * store the current length (or the current start index for the next layer weights) of the constant and save
+ * the start index every time we store a new set of layer weights.
+ * 
+ */
+cudaError_t update_conv2d_const_filters(float *filters_d, uint32_t size) {
+    return cudaMemcpyToSymbol(const_conv2d_filters, filters_d, size * sizeof(float), 0, cudaMemcpyDeviceToDevice);
+}
+
+
 Tensor *initialize_conv_layer_weights(
     uint32_t in_channels,
     uint32_t out_channels,
@@ -120,6 +138,10 @@ Tensor *initialize_conv_layer_weights(
     gpu_error_check(cudaMalloc((void**)&filters_d, weight_size * sizeof(float)));
     gpu_error_check(cudaMemcpy(filters_d, filters, weight_size * sizeof(float), cudaMemcpyHostToDevice));
     conv_weight->values_d = filters_d;
+    
+    // Store in constant memory for faster kernel run.
+    update_conv2d_const_filters(filters_d, weight_size);
+    
     free(filters);
 
     return conv_weight;
@@ -180,8 +202,8 @@ float run_conv2d_forward(Tensor *X, Tensor *filters, LayerGradients *grad, bool 
     dim3 dimGrid(out_channels, out_tiles_num, num_samples);
     
     cudaEventRecord(start);
-    Conv2DForwardKernel<<<dimGrid, dimBlock>>>(
-        Y_d, X->values_d, filters->values_d,
+    Conv2DForwardSimpleKernel<<<dimGrid, dimBlock>>>(
+        Y_d, X->values_d,
         filter_length,
         in_channels,
         grid_width,
@@ -193,6 +215,9 @@ float run_conv2d_forward(Tensor *X, Tensor *filters, LayerGradients *grad, bool 
     cudaEventSynchronize(stop);
     float time_spent_ms = 0;
     cudaEventElapsedTime(&time_spent_ms, start, stop);
+    cudaEventDestroy(start);
+    cudaEventDestroy(stop);
+
 
     // Update X (output) tensor.
     X->dim_size = 4;
@@ -293,6 +318,8 @@ float run_conv2d_backward(Tensor *conv2d_weights, LayerGradients *grad, LayerGra
     cudaEventSynchronize(stop);
     float time_spent_ms = 0;
     cudaEventElapsedTime(&time_spent_ms, start, stop);
+    cudaEventDestroy(start);
+    cudaEventDestroy(stop);
     
     // Update grad.
     free_tensor(X);
@@ -344,6 +371,8 @@ float run_sigmoid_forward(Tensor *X, LayerGradients *grad, bool compute_grad) {
     cudaEventSynchronize(stop);
     float time_spent_ms = 0;
     cudaEventElapsedTime(&time_spent_ms, start, stop);
+    cudaEventDestroy(start);
+    cudaEventDestroy(stop);
 
     if (compute_grad) {
         Tensor *dX = (Tensor *)malloc_check(sizeof(Tensor));
@@ -395,6 +424,9 @@ float run_sigmoid_backward(LayerGradients *grad, LayerGradients *next_layer_grad
     cudaEventSynchronize(stop);
     float time_spent_ms = 0;
     cudaEventElapsedTime(&time_spent_ms, start, stop);
+    cudaEventDestroy(start);
+    cudaEventDestroy(stop);
+
     return time_spent_ms;
 }
 
@@ -451,6 +483,8 @@ float run_pooling_forward(Tensor *X, uint32_t kernel_length, pooling_type pool_t
     cudaEventSynchronize(stop);
     float time_spent_ms = 0;
     cudaEventElapsedTime(&time_spent_ms, start, stop);
+    cudaEventDestroy(start);
+    cudaEventDestroy(stop);
     
     if (compute_grad) {
         Tensor *dX = (Tensor *)malloc_check(sizeof(Tensor));
@@ -509,6 +543,9 @@ float run_pooling_backward(uint32_t kernel_length, LayerGradients *grad, LayerGr
     cudaEventSynchronize(stop);
     float time_spent_ms = 0;
     cudaEventElapsedTime(&time_spent_ms, start, stop);
+    cudaEventDestroy(start);
+    cudaEventDestroy(stop);
+
     return time_spent_ms;
 }
 
@@ -583,6 +620,8 @@ float run_linear_forward(Tensor *X, Tensor *linear_weights, LayerGradients *grad
     cudaEventSynchronize(stop);
     float time_spent_ms = 0;
     cudaEventElapsedTime(&time_spent_ms, start, stop);
+    cudaEventDestroy(start);
+    cudaEventDestroy(stop);
 
     if (compute_grad) {
         // Store gradients.
@@ -676,6 +715,8 @@ float run_linear_backward(Tensor *linear_weights, LayerGradients *grad, LayerGra
     
     float time_spent_ms = 0;
     cudaEventElapsedTime(&time_spent_ms, start, stop);
+    cudaEventDestroy(start);
+    cudaEventDestroy(stop);
 
     return time_spent_ms;
 }
@@ -747,6 +788,9 @@ float run_softmax_forward(Tensor *X, uint8_t *y_d, LayerGradients *grad, bool co
     float time_spent_ms = 0;
 
     cudaEventElapsedTime(&time_spent_ms, start, stop);
+    cudaEventDestroy(start);
+    cudaEventDestroy(stop);
+
     return time_spent_ms;
 }
 

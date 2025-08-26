@@ -32,6 +32,8 @@
 #define POOL_KERNEL_LENGTH 2
 #define POOL_TYPE MAX
 #define NUM_SAMPLES 5
+#define DATASET_SPLIT_TRAIN_PROPORTION 0.6
+#define BATCH_SIZE 256
 
 
 ImageDataset *preprocess_images(MNISTDataset *mnist_dataset) {

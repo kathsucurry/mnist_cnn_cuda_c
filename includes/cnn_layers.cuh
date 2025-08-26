@@ -142,6 +142,17 @@ void free_network_weights(NetworkWeights *weights);
  */
 void free_network_outputs(NetworkOutputs *output, bool include_grad);
 
+/**
+ * Stores filter weights in the constant variable.
+ *  Here, we only assume one convolutional layer. To further expand this, we can
+ *  store the current length (or the current start index for the next layer weights) of the constant and save
+ *  the start index every time we store a new set of layer weights.
+ * 
+ * @param filters_d The filter tensor to be stored in the constant variable.
+ * @param size The size of the tensor.
+ * @return The cuda error code.
+ */
+cudaError_t update_conv2d_const_filters(float *filters_d, uint32_t size);
 
 /**
  * Initializes conv2d layer weights using uniform Xaiver initialization.

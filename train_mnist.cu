@@ -17,6 +17,8 @@
 #define NUM_EPOCHS 10
 // The loss and accuracy of the validation set will be computed every NUM_VALID_ITER epochs.
 #define NUM_EPOCHS_VALID_ITER 2 
+#define DATASET_SPLIT_TRAIN_PROPORTION 0.6
+#define BATCH_SIZE 256
 
 
 ImageDataset *preprocess_images(MNISTDataset *mnist_dataset) {
@@ -94,6 +96,7 @@ float *backward_pass(LayerGradients *gradients, NetworkWeights *network_weights,
     
     // Layer 0: conv2d layer - update both gradients and weights.
     layers_durations_ms[0] = run_conv2d_backward(network_weights->conv2d_weight, &gradients[0], &gradients[1], learning_rate);
+    update_conv2d_const_filters(network_weights->conv2d_weight->values_d, get_tensor_values_size(network_weights->conv2d_weight->num_dim, network_weights->conv2d_weight->dim));
 
     return layers_durations_ms;
 }
