@@ -211,7 +211,11 @@ float run_conv2d_forward(Tensor *X, Tensor *filters, LayerGradients *grad, bool 
 }
 
 
-void run_conv2d_backward(Tensor *conv2d_weights, LayerGradients *grad, LayerGradients *next_layer_grad, float lr) {
+float run_conv2d_backward(Tensor *conv2d_weights, LayerGradients *grad, LayerGradients *next_layer_grad, float lr) {
+    cudaEvent_t start, stop;
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+    
     // Recall that in grad stores W in dW and X in dX (i.e., not gradient values).
     // num samples, out channels, filter length
     Tensor *dY = next_layer_grad->dX_or_X;
@@ -238,6 +242,7 @@ void run_conv2d_backward(Tensor *conv2d_weights, LayerGradients *grad, LayerGrad
 
     dim3 dimBlock(TILE_WIDTH, TILE_WIDTH, 1);
     dim3 dimGriddX(in_channels, out_tiles_num, num_samples);
+    cudaEventRecord(start);
     Conv2DBackwardXGradKernel<<<dimGriddX, dimBlock>>>(
         dX_d, dY->values_d, conv2d_weights->values_d,
         filter_length,
@@ -284,11 +289,18 @@ void run_conv2d_backward(Tensor *conv2d_weights, LayerGradients *grad, LayerGrad
     );
     gpu_error_check(cudaGetLastError());
     
+    cudaEventRecord(stop);
+    cudaEventSynchronize(stop);
+    float time_spent_ms = 0;
+    cudaEventElapsedTime(&time_spent_ms, start, stop);
+    
     // Update grad.
     free_tensor(X);
     grad->dX_or_X = dX;
     grad->dW_or_W = dW;
     grad->is_grad = true;
+
+    return time_spent_ms;
 }
 
 
@@ -355,7 +367,11 @@ float run_sigmoid_forward(Tensor *X, LayerGradients *grad, bool compute_grad) {
 }
 
 
-void run_sigmoid_backward(LayerGradients *grad, LayerGradients *next_layer_grad) {
+float run_sigmoid_backward(LayerGradients *grad, LayerGradients *next_layer_grad) {
+    cudaEvent_t start, stop;
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+    
     Tensor *dX = grad->dX_or_X;
     uint32_t num_samples    = dX->dim[0];
     uint32_t num_channels   = dX->dim[1];
@@ -368,12 +384,18 @@ void run_sigmoid_backward(LayerGradients *grad, LayerGradients *next_layer_grad)
 
     dim3 dimBlock(TILE_WIDTH, TILE_WIDTH);
     dim3 dimGrid(num_channels, out_tiles_num, num_samples);
+    cudaEventRecord(start);
     MultiplyKernel<<<dimGrid, dimBlock>>>(
         dX->values_d, next_layer_grad->dX_or_X->values_d,
         grid_width,
         feature_height, feature_width
     );
     gpu_error_check(cudaGetLastError());
+    cudaEventRecord(stop);
+    cudaEventSynchronize(stop);
+    float time_spent_ms = 0;
+    cudaEventElapsedTime(&time_spent_ms, start, stop);
+    return time_spent_ms;
 }
 
 
@@ -453,7 +475,11 @@ float run_pooling_forward(Tensor *X, uint32_t kernel_length, pooling_type pool_t
 }
 
 
-void run_pooling_backward(uint32_t kernel_length, LayerGradients *grad, LayerGradients *next_layer_grad) {
+float run_pooling_backward(uint32_t kernel_length, LayerGradients *grad, LayerGradients *next_layer_grad) {
+    cudaEvent_t start, stop;
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+    
     Tensor *dX = grad->dX_or_X;
     uint32_t num_samples  = dX->dim[0];
     uint32_t num_channels = dX->dim[1];
@@ -469,6 +495,7 @@ void run_pooling_backward(uint32_t kernel_length, LayerGradients *grad, LayerGra
     dim3 dimBlock(TILE_WIDTH, TILE_WIDTH);
     dim3 dimGrid(num_channels, grad_tiles_num, num_samples);
 
+    cudaEventRecord(start);
     PoolBackwardKernel<<<dimGrid, dimBlock>>>(
         dX->values_d, next_layer_grad->dX_or_X->values_d,
         kernel_length,
@@ -477,6 +504,12 @@ void run_pooling_backward(uint32_t kernel_length, LayerGradients *grad, LayerGra
         next_layer_grad_height, next_layer_grad_width
     );
     gpu_error_check(cudaGetLastError());
+    
+    cudaEventRecord(stop);
+    cudaEventSynchronize(stop);
+    float time_spent_ms = 0;
+    cudaEventElapsedTime(&time_spent_ms, start, stop);
+    return time_spent_ms;
 }
 
 
@@ -495,7 +528,7 @@ float run_flatten_forward(Tensor *X) {
 }
 
 
-void run_flatten_backward(uint32_t num_samples, uint8_t kernel_length, LayerGradients *grad, LayerGradients *next_layer_grad) {
+float run_flatten_backward(uint32_t num_samples, uint8_t kernel_length, LayerGradients *grad, LayerGradients *next_layer_grad) {
     grad->dW_or_W = NULL;
     
     // Update dX.
@@ -515,6 +548,8 @@ void run_flatten_backward(uint32_t num_samples, uint8_t kernel_length, LayerGrad
 
     grad->dX_or_X = dX;
     grad->is_grad = true;
+
+    return 0;
 }
 
 
@@ -586,7 +621,11 @@ float run_linear_forward(Tensor *X, Tensor *linear_weights, LayerGradients *grad
 }
 
 
-void run_linear_backward(Tensor *linear_weights, LayerGradients *grad, LayerGradients *next_layer_grad, float lr) {
+float run_linear_backward(Tensor *linear_weights, LayerGradients *grad, LayerGradients *next_layer_grad, float lr) {
+    cudaEvent_t start, stop;
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+    
     // Recall dY has dimension [num_samples x out_features].
     Tensor *dY = next_layer_grad->dX_or_X;
     Tensor *dW = grad->dW_or_W;
@@ -604,6 +643,7 @@ void run_linear_backward(Tensor *linear_weights, LayerGradients *grad, LayerGrad
     // Transpose dY.
     dim3 dimBlock(TILE_WIDTH, TILE_WIDTH);
     dim3 dimGridTranspose(ceil(num_samples * 1.0 / TILE_WIDTH), ceil(out_features * 1.0 / TILE_WIDTH));
+    cudaEventRecord(start);
     TransposeMatrixKernel<<<dimGridTranspose, dimBlock>>>(dYT, dY->values_d, out_features, num_samples);
     gpu_error_check(cudaGetLastError());
 
@@ -631,6 +671,13 @@ void run_linear_backward(Tensor *linear_weights, LayerGradients *grad, LayerGrad
     dim3 dimGridUpdateW(ceil(in_features * 1.0 / TILE_WIDTH), ceil(out_features * 1.0 / TILE_WIDTH));
     UpdateLinearWeightsKernel<<<dimGridUpdateW, dimBlock>>>(linear_weights->values_d, updated_dW_d, out_features, in_features, lr);
     gpu_error_check(cudaGetLastError());
+    cudaEventRecord(stop);
+    cudaEventSynchronize(stop);
+    
+    float time_spent_ms = 0;
+    cudaEventElapsedTime(&time_spent_ms, start, stop);
+
+    return time_spent_ms;
 }
 
 

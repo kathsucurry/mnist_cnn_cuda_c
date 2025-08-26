@@ -74,23 +74,28 @@ NetworkOutputs *forward_pass(
 }
 
 
-void backward_pass(LayerGradients *gradients, NetworkWeights *network_weights, uint32_t num_samples, float learning_rate) {
+float *backward_pass(LayerGradients *gradients, NetworkWeights *network_weights, uint32_t num_samples, float learning_rate) {
+    uint8_t num_layers = 5;
+    float *layers_durations_ms = (float *)mallocCheck(num_layers * sizeof(float));
+    
     // Go through layers from the second last to the first to update gradients + weights.
     
     // Layer 4: linear layer - update both gradients and weights.
-    run_linear_backward(network_weights->linear_weight, &gradients[4], &gradients[5], learning_rate);
+    layers_durations_ms[4] = run_linear_backward(network_weights->linear_weight, &gradients[4], &gradients[5], learning_rate);
 
     // Layer 3: flatten layer (i.e., change the dimension of the next layer's gradients).
-    run_flatten_backward(num_samples, POOL_KERNEL_LENGTH, &gradients[3], &gradients[4]);
+    layers_durations_ms[3] = run_flatten_backward(num_samples, POOL_KERNEL_LENGTH, &gradients[3], &gradients[4]);
 
     // Layer 2: pooling layer.
-    run_pooling_backward(POOL_KERNEL_LENGTH, &gradients[2], &gradients[3]);
+    layers_durations_ms[2] = run_pooling_backward(POOL_KERNEL_LENGTH, &gradients[2], &gradients[3]);
 
     // Layer 1: sigmoid layer.
-    run_sigmoid_backward(&gradients[1], &gradients[2]);
+    layers_durations_ms[1] = run_sigmoid_backward(&gradients[1], &gradients[2]);
     
     // Layer 0: conv2d layer - update both gradients and weights.
-    run_conv2d_backward(network_weights->conv2d_weight, &gradients[0], &gradients[1], learning_rate);
+    layers_durations_ms[0] = run_conv2d_backward(network_weights->conv2d_weight, &gradients[0], &gradients[1], learning_rate);
+
+    return layers_durations_ms;
 }
 
 
@@ -113,8 +118,9 @@ EpochOutput run_one_epoch(
     EpochOutput epoch_output;
     float loss_sum = 0.0f;
     uint32_t correct_pred_sum = 0;
-    float *total_layers_durations_ms;
     uint32_t num_layers = 0;
+    float *total_forward_layers_durations_ms;
+    float *total_backward_layers_durations_ms;
 
     for (uint32_t batch_index = 0; batch_index < num_batches; ++batch_index) {
         uint32_t num_samples_in_batch = min(num_samples - batch_index * BATCH_SIZE, BATCH_SIZE);
@@ -135,22 +141,27 @@ EpochOutput run_one_epoch(
         );
 
         // Get average time taken by each layer in the forward pass; ignore the first batch due to warm-up.
-        if (batch_index != 0) {
-            if (batch_index == 1) {
-                num_layers = network_outputs->num_layers;
-                total_layers_durations_ms = (float *)calloc(num_layers, sizeof(float));
-            }
-
-            for (uint32_t layer_index = 0; layer_index < network_outputs->num_layers; ++layer_index) {
-                total_layers_durations_ms[layer_index] += network_outputs->layer_durations_ms[layer_index];
-            }
-        }
+        if (batch_index == 0) {
+            num_layers = network_outputs->num_layers;
+            total_forward_layers_durations_ms = (float *)calloc(num_layers, sizeof(float));
+        } else
+            for (uint32_t layer_index = 0; layer_index < num_layers; ++layer_index)
+                total_forward_layers_durations_ms[layer_index] += network_outputs->layer_durations_ms[layer_index];
 
         float *loss = compute_negative_log_likelihood_log_loss(network_outputs->output, y_d);
         loss_sum += *loss;
 
-        if (update_weight)
-            backward_pass(network_outputs->gradients, network_weights, num_samples_in_batch, LEARNING_RATE);
+        if (update_weight) {
+            float *layers_time_duration_ms = backward_pass(network_outputs->gradients, network_weights, num_samples_in_batch, LEARNING_RATE);
+            if (batch_index == 0)
+                total_backward_layers_durations_ms = (float *)calloc(num_layers - 1, sizeof(float));
+            else {
+                for (uint32_t layer_index = 0; layer_index < num_layers - 1; ++layer_index)
+                    total_backward_layers_durations_ms[layer_index] += layers_time_duration_ms[layer_index];
+            }
+
+            free(layers_time_duration_ms);
+        }
 
         if (compute_accuracy) {
             correct_pred_sum += *(get_accurate_predictions_count(network_outputs->output, y_d));
@@ -167,11 +178,21 @@ EpochOutput run_one_epoch(
         printf("Time taken per layer in the forward pass (ms):\n");
         for (uint32_t layer_index = 0; layer_index < num_layers; ++layer_index) {
             // Recall that we ignore the first batch, so divide by (num_batches - 1).
-            printf(">>> Layer %u | total: %10.3f ms | average: %10.3f ms \n", layer_index, total_layers_durations_ms[layer_index], total_layers_durations_ms[layer_index] / (num_batches - 1));
+            printf(">>> Layer %u | total: %10.3f ms | average: %10.3f ms \n", layer_index, total_forward_layers_durations_ms[layer_index], total_forward_layers_durations_ms[layer_index] / (num_batches - 1));
         }
         printf("\n");
     }
-    free(total_layers_durations_ms);
+    free(total_forward_layers_durations_ms);
+
+    if (print_time_per_layer && update_weight && num_batches > 1) {
+        printf("Time taken per layer in the backward pass (ms):\n");
+        for (uint32_t layer_index = 0; layer_index < num_layers - 1; ++layer_index) {
+            // Recall that we ignore the first batch, so divide by (num_batches - 1).
+            printf(">>> Layer %u | total: %10.3f ms | average: %10.3f ms \n", layer_index, total_backward_layers_durations_ms[layer_index], total_backward_layers_durations_ms[layer_index] / (num_batches - 1));
+        }
+        printf("\n");
+        free(total_backward_layers_durations_ms);
+    }
 
     return epoch_output;
 }

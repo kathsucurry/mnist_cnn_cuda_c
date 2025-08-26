@@ -189,8 +189,9 @@ float run_conv2d_forward(Tensor *X, Tensor *filters, LayerGradients *grad, bool 
  * @param grad Contains W and X of the layer for computing dW and dX.
  * @param next_layer_grad The gradients from the next layer for obtaining dY.
  * @param lr The learning rate for updating the weights.
+ * @return The total runtime of the kernel run.
  */
-void run_conv2d_backward(Tensor *conv2d_weights, LayerGradients *grad, LayerGradients *next_layer_grad, float lr);
+float run_conv2d_backward(Tensor *conv2d_weights, LayerGradients *grad, LayerGradients *next_layer_grad, float lr);
 
 
 /**
@@ -210,8 +211,9 @@ float run_sigmoid_forward(Tensor *X, LayerGradients *grad, bool compute_grad);
  * 
  * @param grad Contains dX of the layer before performing chain rule.
  * @param next_layer_grad The gradients from the next layer for obtaining dY.
+ * @return The total runtime of the kernel run.
  */
-void run_sigmoid_backward(LayerGradients *grad, LayerGradients *next_layer_grad);
+float run_sigmoid_backward(LayerGradients *grad, LayerGradients *next_layer_grad);
 
 
 /**
@@ -234,8 +236,9 @@ float run_pooling_forward(Tensor *X, uint32_t kernel_length, pooling_type pool_t
  * @param kernel_length The length of the kernel.
  * @param grad Contains dX of the layer before performing chain rule.
  * @param next_layer_grad The gradients from the next layer for obtaining dY.
+ * @return The total runtime of the kernel run.
  */
-void run_pooling_backward(uint32_t kernel_length, LayerGradients *grad, LayerGradients *next_layer_grad);
+float run_pooling_backward(uint32_t kernel_length, LayerGradients *grad, LayerGradients *next_layer_grad);
 
 
 /**
@@ -256,8 +259,9 @@ float run_flatten_forward(Tensor *X);
  * @param kernel_length The kernel length.
  * @param grad Contains dX of the layer before performing chain rule.
  * @param next_layer_grad The gradients from the next layer for obtaining dY.
+ * @return The total runtime of the kernel run.
  */
-void run_flatten_backward(uint32_t num_samples, uint8_t kernel_length, LayerGradients *grad, LayerGradients *next_layer_grad);
+float run_flatten_backward(uint32_t num_samples, uint8_t kernel_length, LayerGradients *grad, LayerGradients *next_layer_grad);
 
 
 /**
@@ -280,8 +284,9 @@ float run_linear_forward(Tensor *X, Tensor *linear_weights, LayerGradients *grad
  * @param grad Contains dW and dX of the layer.
  * @param next_layer_grad The gradients from the next layer for obtaining dY.
  * @param lr The learning rate for updating the weights.
+ * @return The total runtime of the kernel run.
  */
-void run_linear_backward(Tensor *linear_weights, LayerGradients *grad, LayerGradients *next_layer_grad, float lr);
+float run_linear_backward(Tensor *linear_weights, LayerGradients *grad, LayerGradients *next_layer_grad, float lr);
 
 
 /**
