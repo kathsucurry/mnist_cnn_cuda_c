@@ -14,7 +14,7 @@
 #define LEARNING_RATE 0.05
 #define POOL_KERNEL_LENGTH 2
 #define POOL_TYPE MAX
-#define NUM_EPOCHS 2
+#define NUM_EPOCHS 10
 // The loss and accuracy of the validation set will be computed every NUM_VALID_ITER epochs.
 #define NUM_EPOCHS_VALID_ITER 2 
 

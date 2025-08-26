@@ -172,11 +172,11 @@ float run_conv2d_forward(Tensor *X, Tensor *filters, LayerGradients *grad, bool 
     float *Y_d;
     gpu_error_check(cudaMalloc((void**)&Y_d, out_size * sizeof(float)));
 
-    uint32_t grid_width = ceil(out_width * 1.0 / TILE_WIDTH);
-    uint32_t grid_height = ceil(out_height * 1.0 / TILE_WIDTH);
+    uint32_t grid_width = ceil(out_width * 1.0 / TILE_WIDTH_L);
+    uint32_t grid_height = ceil(out_height * 1.0 / TILE_WIDTH_L);
     uint32_t out_tiles_num = grid_width * grid_height;
 
-    dim3 dimBlock(TILE_WIDTH, TILE_WIDTH, 1);
+    dim3 dimBlock(TILE_WIDTH_L, TILE_WIDTH_L, 1);
     dim3 dimGrid(out_channels, out_tiles_num, num_samples);
     
     cudaEventRecord(start);
@@ -311,6 +311,7 @@ float run_sigmoid_forward(Tensor *X, LayerGradients *grad, bool compute_grad) {
     gpu_error_check(cudaMalloc((void**)&grad_values_d, out_size * sizeof(float)));
     cudaMemset(grad_values_d, 0, out_size * sizeof(float));
 
+    // Set tile width.
     uint32_t grid_height = ceil(feature_height * 1.0 / TILE_WIDTH);
     uint32_t grid_width = ceil(feature_width * 1.0 / TILE_WIDTH);
     uint32_t out_tiles_num = grid_width * grid_height;

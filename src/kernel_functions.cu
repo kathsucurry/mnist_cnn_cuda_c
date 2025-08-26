@@ -15,8 +15,8 @@ __global__ void Conv2DForwardKernel(
     uint32_t out_height      = in_height - kernel_length + 1;
     uint32_t out_width       = in_width - kernel_length + 1;
     uint32_t out_channel_idx = blockIdx.x;
-    uint32_t out_height_idx  = (blockIdx.y / num_tiles_h) * TILE_WIDTH + threadIdx.y;
-    uint32_t out_width_idx   = (blockIdx.y % num_tiles_h) * TILE_WIDTH + threadIdx.x;
+    uint32_t out_height_idx  = (blockIdx.y / num_tiles_h) * TILE_WIDTH_L + threadIdx.y;
+    uint32_t out_width_idx   = (blockIdx.y % num_tiles_h) * TILE_WIDTH_L + threadIdx.x;
     uint32_t sample_idx      = blockIdx.z;
     uint32_t out_channels    = gridDim.x;
 
@@ -156,16 +156,13 @@ __global__ void SigmoidForwardKernel(
     if (out_height_idx >= out_height || out_width_idx >= out_width)
         return;
 
-    for (uint32_t row = 0; row < out_height; ++row)
-        for (uint32_t col = 0; col < out_width; ++col) {
-            uint32_t index = (sample_idx * num_channels * out_height * out_width) +
-                (out_channel_idx * out_height * out_width) +
-                (row * out_width) +
-                col;
-            float value = 1.0 / (1 + expf(-1 * X[index]));
-            Y[index] = value;
-            grad[index] = value * (1 - value);
-        }
+    uint32_t index = (sample_idx * num_channels * out_height * out_width) +
+        (out_channel_idx * out_height * out_width) +
+        (out_height_idx * out_width) +
+        out_width_idx;
+    float value = 1.0 / (1 + expf(-1 * X[index]));
+    Y[index] = value;
+    grad[index] = value * (1 - value);
 }
 
 

@@ -60,39 +60,47 @@ More info on the tests can be found in the test README file.
 [INFO] # Samples in training set: 60000
 The train dataset is splitted into training (n=36000) and validation (n=24000).
 Epoch 0:
---> train loss: 610.436
+Time taken per layer in the forward pass (ms):
+>>> Layer 0 | total:    124.700 ms | average:      0.891 ms 
+>>> Layer 1 | total:     24.017 ms | average:      0.172 ms 
+>>> Layer 2 | total:     22.552 ms | average:      0.161 ms 
+>>> Layer 3 | total:      0.000 ms | average:      0.000 ms 
+>>> Layer 4 | total:     22.424 ms | average:      0.160 ms 
+>>> Layer 5 | total:      3.293 ms | average:      0.024 ms 
+
+Train loss: 610.436
 
 Epoch 1:
---> train loss: 149.599
---> valid loss: 70.602 | accuracy: 76.425%
+Train loss: 149.599
+Valid loss: 70.602 | accuracy: 76.425%
 
 Epoch 2:
---> train loss: 86.212
+Train loss: 86.212
 
 Epoch 3:
---> train loss: 71.634
---> valid loss: 42.728 | accuracy: 87.442%
+Train loss: 71.634
+Valid loss: 42.728 | accuracy: 87.442%
 
 Epoch 4:
---> train loss: 63.749
+Train loss: 63.749
 
 Epoch 5:
---> train loss: 60.004
---> valid loss: 37.932 | accuracy: 88.367%
+Train loss: 60.004
+Valid loss: 37.932 | accuracy: 88.367%
 
 Epoch 6:
---> train loss: 56.884
+Train loss: 56.884
 
 Epoch 7:
---> train loss: 54.398
---> valid loss: 35.864 | accuracy: 88.371%
+Train loss: 54.398
+Valid loss: 35.864 | accuracy: 88.371%
 
 Epoch 8:
---> train loss: 52.558
+Train loss: 52.558
 
 Epoch 9:
---> train loss: 51.004
---> valid loss: 32.961 | accuracy: 89.721%
+Train loss: 51.004
+Valid loss: 32.961 | accuracy: 89.721%
 
 [INFO] # Samples in test set: 10000
 Test accuracy: 90.520%
