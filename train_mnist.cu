@@ -165,7 +165,7 @@ NetworkWeights *train_model(ImageDataset *dataset) {
     ImageDataset *train = split_dataset(dataset, 0, num_train_samples, false);
     ImageDataset *valid = split_dataset(dataset, num_train_samples, num_train_samples + num_valid_samples, true);
 
-    if (train == NULL || valid == NULL) {
+    if (!train || !valid) {
         printf("Error in dataset split.");
         return NULL;
     }

@@ -24,7 +24,7 @@ void free_MNIST_dataset(MNISTDataset *dataset) {
 
 
 void free_images(Image *images, uint32_t num_samples) {
-    if (images == NULL)
+    if (!images)
         return;
     for (uint32_t i = 0; i < num_samples; ++i)
         free(images[i].pixels);
@@ -39,13 +39,8 @@ void free_dataset(ImageDataset *dataset) {
 }
 
 
-uint8_t *_uint32_to_byte(uint32_t number) {
-    uint8_t *array = (uint8_t *)mallocCheck(4 * sizeof(uint8_t));
-    array[0] = (uint8_t)(number >> 24);
-    array[1] = (uint8_t)(number >> 16);
-    array[2] = (uint8_t)(number >>  8);
-    array[3] = (uint8_t)(number >>  0);
-    return array;
+uint8_t *_uint32_to_byte(uint32_t *number) {
+    return (uint8_t *)number;
 }
 
 
@@ -67,15 +62,14 @@ uint8_t _load_dimension_from_idx_file_header(FILE *stream) {
         return invalid_return_value;
 
     // Separate the magic number into 4 one-byte components.
-    uint8_t *magic_byte_array = _uint32_to_byte(magic_number);
+    uint8_t *magic_byte_array = _uint32_to_byte(&magic_number);
 
-    if (magic_byte_array[2] != MAGIC_UNSIGNED_BYTE) {
+    if (magic_byte_array[1] != MAGIC_UNSIGNED_BYTE) {
         printf("Unsigned byte (0x08) expected for the basic data type, found: %u\n", magic_byte_array[2]);
         return invalid_return_value;
     }
 
-    uint8_t num_dim = magic_byte_array[3];
-    free(magic_byte_array);
+    uint8_t num_dim = magic_byte_array[0];
 
     return num_dim;
 }
@@ -156,7 +150,7 @@ MNISTDataset *load_mnist_dataset(const char *images_file_path, const char *label
     MNISTImage *images = _load_images_from_idx_file(images_file_path, &num_images_samples);
     uint8_t *labels = _load_labels_from_idx_file(labels_file_path, &num_labels_samples);
 
-    if (images == NULL || labels == NULL) {
+    if (!images || !labels) {
         printf("The images/labels could not be loaded properly.\n");
         return NULL;
     }

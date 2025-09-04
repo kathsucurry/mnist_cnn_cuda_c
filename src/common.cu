@@ -14,7 +14,7 @@ cudaError_t cudaMallocCheck(void **dev_ptr, size_t size) {
 
 void *mallocCheck(size_t size) {
     void *malloc_return = malloc(size);
-    if (malloc_return == NULL) {
+    if (!malloc_return) {
         printf("Malloc failed!\n");
         exit(EXIT_FAILURE);
     }

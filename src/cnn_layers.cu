@@ -50,7 +50,7 @@ Tensor *deep_copy_tensor(Tensor *tensor) {
 
 
 void free_tensor(Tensor *tensor) {
-    if (tensor == NULL)
+    if (!tensor)
         return;
     cudaFree(tensor->values_d);
     free(tensor->dim);
