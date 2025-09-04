@@ -66,7 +66,7 @@ float *read_float_array_from_file(const char *file_path, uint32_t size) {
 
 
 void compare_tensor(const char *label, const char *file_path, Tensor *tensor) {
-    uint32_t out_size = get_tensor_values_size(tensor->num_dim, tensor->dim);
+    uint32_t out_size = get_tensor_size(tensor->dim_size, tensor->dim);
     float *expected_output = read_float_array_from_file(file_path, out_size);
 
     printf("Test: %s...", label);
@@ -104,7 +104,7 @@ void compare_float(const char *label, const char *file_path, float *actual_outpu
 
 
 void print_flatten_tensor_values(Tensor *tensor, uint32_t print_size) {
-    uint32_t size = get_tensor_values_size(tensor->num_dim, tensor->dim);
+    uint32_t size = get_tensor_size(tensor->dim_size, tensor->dim);
 
     float *values = (float *)malloc_check(size * sizeof(float));
     cudaMemcpy(values, tensor->values_d, size * sizeof(float), cudaMemcpyDeviceToHost);

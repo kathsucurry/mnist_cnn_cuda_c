@@ -7,24 +7,64 @@
 #include "kernel_functions.cuh"
 
 
+/** @struct Tensor
+ * Stores a multi-dimensional float array.
+ * 
+ * @var Tensor::dim_size
+ *  The size of dimension. For instance, a dimension of [2, 2, 2] would have a size of 3.
+ * @var Tensor::dim
+ *  The dimension of the tensor.
+ * @var Tensor::values_d
+ *  The float values of the tensor that is allocated in device in row-major format.
+ */
 typedef struct {
-    uint8_t num_dim;
+    uint8_t dim_size;
     uint32_t *dim;
-    float *values_d; // Stored in device + row-major format.
+    float *values_d;
 } Tensor;
 
-// Assume only one 1 conv and 1 linear layers for now.
+
+/** @struct NetworkWeights.
+ * Stores the weights of the network, assuming there is only one conv2d layer and one linear layer.
+ * 
+ * @var NetworkWeights::conv2d_weight
+ *  The weights of the conv2d layer.
+ * @var NetworkWeights::linear_weight
+ *  The weights of the linear layer.
+ */
 typedef struct {
     Tensor *conv2d_weight;
     Tensor *linear_weight;
 } NetworkWeights;
 
+
+/** @struct LayerGradients.
+ * Stores gradients/weights/X values of a layer. Note that dX is the dY of the previous layer.
+ * 
+ * @var LayerGradients::dW_or_W
+ *  The weights or weight gradients of the layer.
+ * @var LayerGradients::dX_or_X
+ *  The weights or the input gradients of the layer.
+ * @var LayerGradients::is_grad
+ *  True if it stores the gradients of W and X, else, it stores the values of W and X.
+ */
 typedef struct {
     Tensor *dW_or_W;
     Tensor *dX_or_X;
     bool is_grad; // True if dW/dX is stored, else it saves W/X for later computation in the chain rule.
 } LayerGradients;
 
+
+/** @struct NetworkOutputs.
+ * The network outputs, containing the output of the last layer and the gradient values.
+ * 
+ * @var NetworkOutputs::gradients
+ *  The gradient values of each layer.
+ * @var NetworkOutputs::num_layers
+ *  The number of layers within the network.
+ * @var NetworkOutputs::output
+ *  The tensor output of the last layer.
+ */
 typedef struct {
     LayerGradients *gradients;
     uint32_t num_layers;
@@ -32,14 +72,25 @@ typedef struct {
 } NetworkOutputs;
 
 
+/** @struct EpochOutput.
+ * The output of one training epoch.
+ * 
+ * @var EpochOutput::loss
+ *  The loss value.
+ * @var EpochOutput::accuracy_percent
+ *  The accuracy value in percentage.
+ */
 typedef struct {
     float loss;
     float accuracy_percent;
 } EpochOutput;
 
 
-uint32_t get_tensor_values_size(const uint8_t num_dim, const uint32_t *dim);
-Tensor *initialize_tensor(float *X, uint8_t num_dim, uint32_t *dim);
+/**
+ * Computes the tensor size
+ */
+uint32_t get_tensor_size(const uint8_t dim_size, const uint32_t *dim);
+Tensor *initialize_tensor(float *X, uint8_t dim_size, uint32_t *dim);
 Tensor *deep_copy_tensor(Tensor *tensor);
 void free_tensor(Tensor *tensor);
 void free_layer_gradients(LayerGradients *gradients);

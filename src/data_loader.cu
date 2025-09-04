@@ -9,8 +9,8 @@
 #include "../includes/common.cuh"
 
 
-void free_MNIST_images(MNISTImage *images, uint32_t num_samples) {
-    for (uint32_t i = 0; i < num_samples; ++i)
+void free_MNIST_images(MNISTImage *images, uint32_t count) {
+    for (uint32_t i = 0; i < count; ++i)
         free(images[i].pixels);
     free(images);
 }
@@ -23,13 +23,14 @@ void free_MNIST_dataset(MNISTDataset *dataset) {
 }
 
 
-void free_images(Image *images, uint32_t num_samples) {
+void free_images(Image *images, uint32_t count) {
     if (!images)
         return;
-    for (uint32_t i = 0; i < num_samples; ++i)
+    for (uint32_t i = 0; i < count; ++i)
         free(images[i].pixels);
     free(images);
 }
+
 
 void free_dataset(ImageDataset *dataset) {
     free_images(dataset->images, dataset->num_samples);
@@ -69,9 +70,9 @@ uint8_t _load_dimension_from_idx_file_header(FILE *stream) {
         return invalid_return_value;
     }
 
-    uint8_t num_dim = magic_byte_array[0];
+    uint8_t dim_size = magic_byte_array[0];
 
-    return num_dim;
+    return dim_size;
 }
 
 
@@ -89,9 +90,9 @@ MNISTImage *_load_images_from_idx_file(const char *file_path, uint32_t *num_samp
         return NULL;
     }
 
-    uint8_t num_dimensions = _load_dimension_from_idx_file_header(stream);
-    if (num_dimensions != MAGIC_IMAGES_DIM) {
-        printf("Expected 3 dimensions for image file, found %u\n", num_dimensions);
+    uint8_t dim_size = _load_dimension_from_idx_file_header(stream);
+    if (dim_size != MAGIC_IMAGES_DIM) {
+        printf("Expected 3 dimensions for image file, found %u\n", dim_size);
         return NULL;
     }
 
@@ -126,9 +127,9 @@ uint8_t *_load_labels_from_idx_file(const char *file_path, uint32_t *num_samples
         return NULL;
     }
 
-    uint8_t num_dimensions = _load_dimension_from_idx_file_header(stream);
-    if (num_dimensions != MAGIC_LABELS_DIM) {
-        printf("Expected 1 dimension for label file, found %u\n", num_dimensions);
+    uint8_t dim_size = _load_dimension_from_idx_file_header(stream);
+    if (dim_size != MAGIC_LABELS_DIM) {
+        printf("Expected 1 dimension for label file, found %u\n", dim_size);
         return NULL;
     }
 
@@ -171,27 +172,16 @@ MNISTDataset *load_mnist_dataset(const char *images_file_path, const char *label
 void shuffle_indices(ImageDataset *dataset, uint8_t seed) {
     srand(seed);
     uint32_t num_samples = dataset->num_samples;
-    // printf("In shuffle indices, num_samples is %u\n", num_samples);
     for (uint32_t init_index = 0; init_index < num_samples; ++init_index) {
         uint32_t index_to_swap = rand() % num_samples;
         uint32_t temp = dataset->view_indices[init_index];
-        // if (temp > num_samples)
-        //     printf("Why is temp > num_samples????\n");
         dataset->view_indices[init_index] = dataset->view_indices[index_to_swap];
         dataset->view_indices[index_to_swap] = temp;
     }
 }
 
 
-/**
- * Allocate dataset, typically used for splitting into training and validation sets.
- * 
- * Note that the images in split_dataset points to the images in the inputted dataset, i.e.,
- * if dataset's memory is freed early, the images in split_datset will also be affected. Setting clear_dataset to true
- * will release the inputted dataset's pointer to the images.
- * 
- */
-ImageDataset *split_dataset(ImageDataset *dataset, uint32_t begin_index, uint32_t end_index, bool clear_dataset) {
+ImageDataset *split_dataset(ImageDataset *dataset, uint32_t begin_index, uint32_t end_index, bool release_images) {
     uint32_t num_samples = end_index - begin_index;
     if (num_samples > dataset->num_samples) {
         printf("Error in dataset split: number of samples for the new split exceeds the initial number of samples.");
@@ -210,7 +200,7 @@ ImageDataset *split_dataset(ImageDataset *dataset, uint32_t begin_index, uint32_
         split_dataset->view_indices[i] = i;
     }   
 
-    if (clear_dataset) {
+    if (release_images) {
         dataset->images = NULL;
     }
     return split_dataset; 

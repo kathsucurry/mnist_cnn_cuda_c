@@ -1,6 +1,8 @@
 #include <cuda_runtime.h>
 #include <stdio.h> 
 
+#include "../includes/common.cuh"
+
 
 void gpu_assert(cudaError_t code, int line) {
    if (code != cudaSuccess) {

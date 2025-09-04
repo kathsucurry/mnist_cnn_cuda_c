@@ -20,14 +20,14 @@ int _compare_int_pointer(const void *a, const void *b) {
 void test_initialize_conv_layer_weights(Tensor *tensor) {
     printf("Data prep test: initialize conv2d layer weights.....");
 
-    if (tensor->num_dim != 4) {
+    if (tensor->dim_size != 4) {
         printf("FAILED\n");
-        printf("# dim must be 4; actual value = %u\n", tensor->num_dim);
+        printf("# dim must be 4; actual value = %u\n", tensor->dim_size);
         abort();
     }
 
     uint32_t expected_dim[] = {4, 1, 5, 5};
-    for (uint32_t i = 0; i < tensor->num_dim; ++i)
+    for (uint32_t i = 0; i < tensor->dim_size; ++i)
         if (tensor->dim[i] != expected_dim[i]) {
             printf("FAILED\n");
             printf("Expected dim[%u] = %u; actual value = %u\n", i, expected_dim[i], tensor->dim[i]);
@@ -53,14 +53,14 @@ void test_initialize_conv_layer_weights(Tensor *tensor) {
 void test_initialize_linear_layer_weights(Tensor *tensor) {
     printf("Data prep test: initialize linear layer weights.....");
 
-    if (tensor->num_dim != 2) {
+    if (tensor->dim_size != 2) {
         printf("FAILED\n");
-        printf("# dim must be 2; actual value = %u\n", tensor->num_dim);
+        printf("# dim must be 2; actual value = %u\n", tensor->dim_size);
         abort();
     }
 
     uint32_t expected_dim[] = {10, 784};
-    for (uint32_t i = 0; i < tensor->num_dim; ++i)
+    for (uint32_t i = 0; i < tensor->dim_size; ++i)
         if (tensor->dim[i] != expected_dim[i]) {
             printf("FAILED\n");
             printf("Expected dim[%u] = %u; actual value = %u\n", i, expected_dim[i], tensor->dim[i]);

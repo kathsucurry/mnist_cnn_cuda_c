@@ -6,7 +6,7 @@
 #include "../includes/common.cuh"
 
 
-ImageDataset *prepare_dataset(MNISTDataset *dataset) {
+ImageDataset *generate_image_dataset(MNISTDataset *dataset) {
     uint8_t *copy_labels = (uint8_t *)malloc_check(dataset->num_samples * sizeof(uint8_t));
     Image *copy_images = (Image *)malloc_check(dataset->num_samples * sizeof(Image));
     uint32_t *copy_view_indices = (uint32_t *)malloc_check(dataset->num_samples * sizeof(uint32_t));
@@ -32,7 +32,7 @@ ImageDataset *prepare_dataset(MNISTDataset *dataset) {
 }
 
 
-ImageDataset *normalize_pixels(ImageDataset *dataset) {
+void normalize_pixels(ImageDataset *dataset) {
     for (uint32_t i = 0; i < dataset->num_samples; ++i) {
         Image image = dataset->images[i];
         float *pixels = image.pixels;
@@ -41,13 +41,10 @@ ImageDataset *normalize_pixels(ImageDataset *dataset) {
             for (uint32_t col = 0; col < image.width; ++col)
                 pixels[row * image.width + col] /= MAX_PIXEL_VALUE;
     }
-
-    return dataset;
 }
 
 
-ImageDataset *add_padding(ImageDataset *dataset, uint8_t num_padding) {
-    // TODO: only modify the "view" and "stride" to keep the original data.
+void add_padding(ImageDataset *dataset, uint8_t num_padding) {
     for (uint32_t i = 0; i < dataset->num_samples; ++i) {
         Image *image = &(dataset->images[i]);
         uint32_t new_height = image->height + 2 * num_padding;
@@ -62,6 +59,4 @@ ImageDataset *add_padding(ImageDataset *dataset, uint8_t num_padding) {
         image->height = new_height;
         image->width = new_width;
     }
-
-    return dataset;
 }
