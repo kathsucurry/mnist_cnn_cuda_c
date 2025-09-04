@@ -18,14 +18,14 @@ uint32_t get_tensor_values_size(const uint8_t num_dim, const uint32_t *dim) {
 
 
 Tensor *initialize_tensor(float *X, uint8_t num_dim, uint32_t *dim) {
-    Tensor *tensor = (Tensor *)mallocCheck(sizeof(Tensor));
+    Tensor *tensor = (Tensor *)malloc_check(sizeof(Tensor));
     tensor->num_dim = num_dim;
     tensor->dim = dim;
 
     uint32_t size = get_tensor_values_size(num_dim, dim);
     float *values_d;
-    cudaMallocCheck((void**)&values_d, size * sizeof(float));
-    cudaMemcpy(values_d, X, size * sizeof(float), cudaMemcpyHostToDevice);
+    gpu_error_check(cudaMalloc((void**)&values_d, size * sizeof(float)));
+    gpu_error_check(cudaMemcpy(values_d, X, size * sizeof(float), cudaMemcpyHostToDevice));
 
     tensor->values_d = values_d;
     return tensor;
@@ -33,16 +33,16 @@ Tensor *initialize_tensor(float *X, uint8_t num_dim, uint32_t *dim) {
 
 
 Tensor *deep_copy_tensor(Tensor *tensor) {
-    Tensor *new_tensor = (Tensor *)mallocCheck(sizeof(Tensor));
+    Tensor *new_tensor = (Tensor *)malloc_check(sizeof(Tensor));
     new_tensor->num_dim = tensor->num_dim;
 
-    new_tensor->dim = (uint32_t *)mallocCheck(new_tensor->num_dim * sizeof(uint32_t));
+    new_tensor->dim = (uint32_t *)malloc_check(new_tensor->num_dim * sizeof(uint32_t));
     memcpy(new_tensor->dim, tensor->dim, new_tensor->num_dim * sizeof(uint32_t));
 
     uint32_t out_size = get_tensor_values_size(new_tensor->num_dim, new_tensor->dim);
     float *new_tensor_values_d;
-    cudaMallocCheck((void**)&new_tensor_values_d, out_size * sizeof(float));
-    cudaMemcpy(new_tensor_values_d, tensor->values_d, out_size * sizeof(float), cudaMemcpyDeviceToDevice);
+    gpu_error_check(cudaMalloc((void**)&new_tensor_values_d, out_size * sizeof(float)));
+    gpu_error_check(cudaMemcpy(new_tensor_values_d, tensor->values_d, out_size * sizeof(float), cudaMemcpyDeviceToDevice));
 
     new_tensor->values_d = new_tensor_values_d;
     return new_tensor;
@@ -52,7 +52,7 @@ Tensor *deep_copy_tensor(Tensor *tensor) {
 void free_tensor(Tensor *tensor) {
     if (!tensor)
         return;
-    cudaFree(tensor->values_d);
+    gpu_error_check(cudaFree(tensor->values_d));
     free(tensor->dim);
     free(tensor);
 }
@@ -89,7 +89,7 @@ float *_uniform_xavier_initialization(uint32_t fan_in, uint32_t fan_out, uint32_
     // Assume gain = 1.
     srand(seed);
     float x = sqrtf(6.0 / (fan_in + fan_out));
-    float *array = (float *)mallocCheck(size * sizeof(float));
+    float *array = (float *)malloc_check(size * sizeof(float));
     for (uint32_t i = 0; i < size; ++i)
         array[i] = x * 2 * (rand() * 1.0 / RAND_MAX) - x; 
     return array;
@@ -103,10 +103,10 @@ Tensor *initialize_conv_layer_weights(
     uint8_t filter_length,
     uint32_t seed
 ) {
-    Tensor *conv_weight = (Tensor *)mallocCheck(sizeof(Tensor));
+    Tensor *conv_weight = (Tensor *)malloc_check(sizeof(Tensor));
     // Dimensions = out_channels * in_channels * filter_length * filter_length.
     conv_weight->num_dim = 4;
-    conv_weight->dim = (uint32_t *)mallocCheck(conv_weight->num_dim * sizeof(uint32_t));
+    conv_weight->dim = (uint32_t *)malloc_check(conv_weight->num_dim * sizeof(uint32_t));
     conv_weight->dim[0] = out_channels;
     conv_weight->dim[1] = in_channels;
     conv_weight->dim[2] = filter_length;
@@ -118,8 +118,8 @@ Tensor *initialize_conv_layer_weights(
 
     float *filters = _uniform_xavier_initialization(fan_in, fan_out, weight_size, seed);
     float *filters_d;
-    cudaMallocCheck((void**)&filters_d, weight_size * sizeof(float));
-    cudaMemcpy(filters_d, filters, weight_size * sizeof(float), cudaMemcpyHostToDevice);
+    gpu_error_check(cudaMalloc((void**)&filters_d, weight_size * sizeof(float)));
+    gpu_error_check(cudaMemcpy(filters_d, filters, weight_size * sizeof(float), cudaMemcpyHostToDevice));
     conv_weight->values_d = filters_d;
     free(filters);
 
@@ -128,18 +128,18 @@ Tensor *initialize_conv_layer_weights(
 
 
 Tensor *initialize_linear_layer_weights(uint32_t in_features, uint32_t out_features, uint32_t seed) {
-    Tensor *linear_weight = (Tensor *)mallocCheck(sizeof(Tensor));
+    Tensor *linear_weight = (Tensor *)malloc_check(sizeof(Tensor));
     linear_weight->num_dim = 2;
 
-    linear_weight->dim = (uint32_t *)mallocCheck(linear_weight->num_dim * sizeof(uint32_t));
+    linear_weight->dim = (uint32_t *)malloc_check(linear_weight->num_dim * sizeof(uint32_t));
     linear_weight->dim[0] = out_features;
     linear_weight->dim[1] = in_features;
     uint32_t weight_size = out_features * in_features;
 
     float *weights = _uniform_xavier_initialization(in_features, out_features, weight_size, seed);
     float *weights_d;
-    cudaMallocCheck((void**)&weights_d, weight_size * sizeof(float));
-    cudaMemcpy(weights_d, weights, weight_size * sizeof(float), cudaMemcpyHostToDevice);
+    gpu_error_check(cudaMalloc((void**)&weights_d, weight_size * sizeof(float)));
+    gpu_error_check(cudaMemcpy(weights_d, weights, weight_size * sizeof(float), cudaMemcpyHostToDevice));
     linear_weight->values_d = weights_d;
     free(weights);
 
@@ -170,7 +170,7 @@ void run_conv2d_forward(Tensor *output, Tensor *filters, LayerGradients *grad, b
     }
 
     float *Y_d;
-    cudaMallocCheck((void**)&Y_d, out_size * sizeof(float));
+    gpu_error_check(cudaMalloc((void**)&Y_d, out_size * sizeof(float)));
 
     uint32_t grid_width = ceil(out_width * 1.0 / TILE_WIDTH);
     uint32_t grid_height = ceil(out_height * 1.0 / TILE_WIDTH);
@@ -186,18 +186,19 @@ void run_conv2d_forward(Tensor *output, Tensor *filters, LayerGradients *grad, b
         grid_height, grid_width,
         in_height, in_width
     );
+    gpu_error_check(cudaGetLastError());
 
     // Update output tensor.
     output->num_dim = 4;
     
     free(output->dim);
-    output->dim = (uint32_t *)mallocCheck(output->num_dim * sizeof(uint32_t));
+    output->dim = (uint32_t *)malloc_check(output->num_dim * sizeof(uint32_t));
     output->dim[0] = num_samples;
     output->dim[1] = out_channels;
     output->dim[2] = out_height;
     output->dim[3] = out_width;
     
-    cudaFree(output->values_d);
+    gpu_error_check(cudaFree(output->values_d));
     output->values_d = Y_d;
 }
 
@@ -220,7 +221,7 @@ void run_conv2d_backward(Tensor *conv2d_weights, LayerGradients *grad, LayerGrad
 
     // Calculate dX.
     float *dX_d;
-    cudaMallocCheck((void**)&dX_d, in_size * sizeof(float));
+    gpu_error_check(cudaMalloc((void**)&dX_d, in_size * sizeof(float)));
     cudaMemset(dX_d, 0, in_size * sizeof(float));
 
     uint32_t grid_width = ceil(in_width * 1.0 / TILE_WIDTH);
@@ -236,16 +237,17 @@ void run_conv2d_backward(Tensor *conv2d_weights, LayerGradients *grad, LayerGrad
         grid_height, grid_width,
         in_height, in_width
     );
+    gpu_error_check(cudaGetLastError());
 
-    Tensor *dX = (Tensor *)mallocCheck(sizeof(Tensor));
+    Tensor *dX = (Tensor *)malloc_check(sizeof(Tensor));
     dX->values_d = dX_d;
     dX->num_dim  = 4;
-    dX->dim      = (uint32_t *)mallocCheck(4 * sizeof(uint32_t));
+    dX->dim      = (uint32_t *)malloc_check(4 * sizeof(uint32_t));
     memcpy(dX->dim, X->dim, 4 * sizeof(uint32_t));
 
     // Calculate dW.
     float *dW_d;
-    cudaMallocCheck((void**)&dW_d, weight_size * sizeof(float));
+    gpu_error_check(cudaMalloc((void**)&dW_d, weight_size * sizeof(float)));
     cudaMemset(dW_d, 0, weight_size * sizeof(float));
 
     grid_width  = ceil(filter_length * 1.0 / TILE_WIDTH);
@@ -260,17 +262,19 @@ void run_conv2d_backward(Tensor *conv2d_weights, LayerGradients *grad, LayerGrad
         grid_height, grid_width,
         out_height, out_width
     );
+    gpu_error_check(cudaGetLastError());
 
-    Tensor *dW = (Tensor *)mallocCheck(sizeof(Tensor));
+    Tensor *dW = (Tensor *)malloc_check(sizeof(Tensor));
     dW->values_d = dW_d;
     dW->num_dim  = 4;
-    dW->dim      = (uint32_t *)mallocCheck(4 * sizeof(uint32_t));
+    dW->dim      = (uint32_t *)malloc_check(4 * sizeof(uint32_t));
     memcpy(dW->dim, conv2d_weights->dim, 4 * sizeof(uint32_t));
 
     // Update W.
     Update3DGridParameterKernel<<<dimGriddW, dimBlock>>>(
         conv2d_weights->values_d, dW_d, filter_length, filter_length, grid_height, grid_width, lr
     );
+    gpu_error_check(cudaGetLastError());
     
     // Update grad.
     free_tensor(X);
@@ -288,11 +292,11 @@ void run_sigmoid_forward(Tensor *tensor, LayerGradients *grad, bool compute_grad
     uint32_t out_size       = num_samples * num_channels * feature_height * feature_width;
 
     float *Y_d;
-    cudaMallocCheck((void**)&Y_d, out_size * sizeof(float));
+    gpu_error_check(cudaMalloc((void**)&Y_d, out_size * sizeof(float)));
 
     // Prepare gradients.
     float *grad_values_d;
-    cudaMallocCheck((void**)&grad_values_d, out_size * sizeof(float));
+    gpu_error_check(cudaMalloc((void**)&grad_values_d, out_size * sizeof(float)));
     cudaMemset(grad_values_d, 0, out_size * sizeof(float));
 
     uint32_t grid_height = ceil(feature_height * 1.0 / TILE_WIDTH);
@@ -308,11 +312,12 @@ void run_sigmoid_forward(Tensor *tensor, LayerGradients *grad, bool compute_grad
         grid_height, grid_width,
         feature_height, feature_width
     );
+    gpu_error_check(cudaGetLastError());
 
     if (compute_grad) {
-        Tensor *dX = (Tensor *)mallocCheck(sizeof(Tensor));
+        Tensor *dX = (Tensor *)malloc_check(sizeof(Tensor));
         dX->num_dim = tensor->num_dim;
-        dX->dim = (uint32_t *)mallocCheck(dX->num_dim * sizeof(uint32_t));
+        dX->dim = (uint32_t *)malloc_check(dX->num_dim * sizeof(uint32_t));
         memcpy(dX->dim, tensor->dim, dX->num_dim * sizeof(uint32_t));
         dX->values_d = grad_values_d;
 
@@ -320,11 +325,11 @@ void run_sigmoid_forward(Tensor *tensor, LayerGradients *grad, bool compute_grad
         grad->dX_or_X = dX;
         grad->is_grad = true;
     } else {
-        cudaFree(grad_values_d);
+        gpu_error_check(cudaFree(grad_values_d));
     }
 
     // Update tensor.
-    cudaFree(tensor->values_d);
+    gpu_error_check(cudaFree(tensor->values_d));
     tensor->values_d = Y_d;
 }
 
@@ -347,6 +352,7 @@ void run_sigmoid_backward(LayerGradients *grad, LayerGradients *next_layer_grad)
         grid_height, grid_width,
         feature_height, feature_width
     );
+    gpu_error_check(cudaGetLastError());
 }
 
 
@@ -362,7 +368,7 @@ void run_pooling_forward(Tensor *tensor, uint32_t kernel_length, pooling_type po
     uint32_t out_size       = num_samples * num_channels * out_height * out_width;
 
     float *Y_d;
-    cudaMallocCheck((void**)&Y_d, out_size * sizeof(float));
+    gpu_error_check(cudaMalloc((void**)&Y_d, out_size * sizeof(float)));
 
     uint32_t grid_height = ceil(out_height * 1.0 / TILE_WIDTH);
     uint32_t grid_width = ceil(out_width * 1.0 / TILE_WIDTH);
@@ -374,13 +380,13 @@ void run_pooling_forward(Tensor *tensor, uint32_t kernel_length, pooling_type po
     if (pool_type != MEAN && pool_type != MAX) {
         printf("The inputted pooling type is currently not implemented.");
         free_tensor(tensor);
-        cudaFree(Y_d);
+        gpu_error_check(cudaFree(Y_d));
         exit(EXIT_FAILURE);
     }
 
     // Store gradients.
     float *grad_values_d;
-    cudaMallocCheck((void**)&grad_values_d, in_size * sizeof(float));
+    gpu_error_check(cudaMalloc((void**)&grad_values_d, in_size * sizeof(float)));
     cudaMemset(grad_values_d, 0, in_size * sizeof(float));
 
     PoolForwardKernel<<<dimGrid, dimBlock>>>(
@@ -392,11 +398,12 @@ void run_pooling_forward(Tensor *tensor, uint32_t kernel_length, pooling_type po
         feature_height, feature_width,
         out_height, out_width
     );
+    gpu_error_check(cudaGetLastError());
     
     if (compute_grad) {
-        Tensor *dX = (Tensor *)mallocCheck(sizeof(Tensor));
+        Tensor *dX = (Tensor *)malloc_check(sizeof(Tensor));
         dX->num_dim = tensor->num_dim;
-        dX->dim = (uint32_t *)mallocCheck(dX->num_dim * sizeof(uint32_t));
+        dX->dim = (uint32_t *)malloc_check(dX->num_dim * sizeof(uint32_t));
         memcpy(dX->dim, tensor->dim, dX->num_dim * sizeof(uint32_t));
         dX->values_d = grad_values_d;
 
@@ -404,12 +411,12 @@ void run_pooling_forward(Tensor *tensor, uint32_t kernel_length, pooling_type po
         grad->dX_or_X = dX;
         grad->is_grad = true;
     } else
-        cudaFree(grad_values_d);
+        gpu_error_check(cudaFree(grad_values_d));
 
     // Update tensor.
     tensor->dim[2] = out_height;
     tensor->dim[3] = out_width;
-    cudaFree(tensor->values_d);
+    gpu_error_check(cudaFree(tensor->values_d));
     tensor->values_d = Y_d;
 }
 
@@ -437,6 +444,7 @@ void run_pooling_backward(uint32_t kernel_length, LayerGradients *grad, LayerGra
         grad_height, grad_width,
         next_layer_grad_height, next_layer_grad_width
     );
+    gpu_error_check(cudaGetLastError());
 }
 
 
@@ -447,7 +455,7 @@ void run_flatten_forward(Tensor *tensor) {
     tensor->num_dim = 2;
     free(tensor->dim);
 
-    tensor->dim = (uint32_t *)mallocCheck(tensor->num_dim * sizeof(uint32_t));
+    tensor->dim = (uint32_t *)malloc_check(tensor->num_dim * sizeof(uint32_t));
     tensor->dim[0] = num_samples;
     tensor->dim[1] = size;
 }
@@ -465,7 +473,7 @@ void run_flatten_backward(uint32_t num_samples, uint8_t kernel_length, LayerGrad
     dX->num_dim = 4;
 
     free(dX->dim);
-    dX->dim = (uint32_t *)mallocCheck(dX->num_dim * sizeof(uint32_t));
+    dX->dim = (uint32_t *)malloc_check(dX->num_dim * sizeof(uint32_t));
     dX->dim[0] = num_samples;
     dX->dim[1] = num_channels;
     dX->dim[2] = kernel_length;
@@ -484,7 +492,7 @@ void run_linear_forward(Tensor *X, Tensor *linear_weights, LayerGradients *grad,
 
     // Run linear layer.
     float *Y_d;
-    cudaMallocCheck((void**)&Y_d, out_size * sizeof(float));
+    gpu_error_check(cudaMalloc((void**)&Y_d, out_size * sizeof(float)));
 
     dim3 dimBlock(TILE_WIDTH, TILE_WIDTH);
     dim3 dimGrid(ceil(out_features * 1.0 / (TILE_WIDTH * THREAD_COARSENING_FACTOR)), ceil(num_samples * 1.0 / TILE_WIDTH));
@@ -495,25 +503,26 @@ void run_linear_forward(Tensor *X, Tensor *linear_weights, LayerGradients *grad,
         num_samples,
         in_features, out_features
     );
+    gpu_error_check(cudaGetLastError());
 
     if (compute_grad) {
         // Store gradients.
-        Tensor *dW = (Tensor *)mallocCheck(sizeof(Tensor));
-        Tensor *dX = (Tensor *)mallocCheck(sizeof(Tensor));
+        Tensor *dW = (Tensor *)malloc_check(sizeof(Tensor));
+        Tensor *dX = (Tensor *)malloc_check(sizeof(Tensor));
         
         float *dW_values, *dX_values;
-        cudaMallocCheck((void**)&dW_values, num_samples * in_features * sizeof(float));
-        cudaMemcpy(dW_values, X->values_d, num_samples * in_features * sizeof(float), cudaMemcpyHostToDevice);
-        cudaMallocCheck((void**)&dX_values, out_features * in_features * sizeof(float));
-        cudaMemcpy(dX_values, linear_weights->values_d, out_features * in_features * sizeof(float), cudaMemcpyHostToDevice);
+        gpu_error_check(cudaMalloc((void**)&dW_values, num_samples * in_features * sizeof(float)));
+        gpu_error_check(cudaMemcpy(dW_values, X->values_d, num_samples * in_features * sizeof(float), cudaMemcpyHostToDevice));
+        gpu_error_check(cudaMalloc((void**)&dX_values, out_features * in_features * sizeof(float)));
+        gpu_error_check(cudaMemcpy(dX_values, linear_weights->values_d, out_features * in_features * sizeof(float), cudaMemcpyHostToDevice));
 
-        dW->dim = (uint32_t *)mallocCheck(2 * sizeof(uint32_t));
+        dW->dim = (uint32_t *)malloc_check(2 * sizeof(uint32_t));
         dW->dim[0] = num_samples;
         dW->dim[1] = in_features;
         dW->num_dim = 2;
         dW->values_d = dW_values;
 
-        dX->dim = (uint32_t *)mallocCheck(2 * sizeof(uint32_t));
+        dX->dim = (uint32_t *)malloc_check(2 * sizeof(uint32_t));
         dX->dim[0] = out_features;
         dX->dim[1] = in_features;
         dX->num_dim = 2;
@@ -526,7 +535,7 @@ void run_linear_forward(Tensor *X, Tensor *linear_weights, LayerGradients *grad,
 
     // Update tensor.
     X->dim[1] = out_features;
-    cudaFree(X->values_d);
+    gpu_error_check(cudaFree(X->values_d));
     X->values_d = Y_d;
 }
 
@@ -542,7 +551,7 @@ void run_linear_backward(Tensor *linear_weights, LayerGradients *grad, LayerGrad
     uint32_t in_features  = dW->dim[1];
 
     float *dYT, *updated_dW_d, *updated_dX_d;
-    cudaMallocCheck((void**)&dYT, num_samples * out_features * sizeof(float));
+    gpu_error_check(cudaMalloc((void**)&dYT, num_samples * out_features * sizeof(float)));
     cudaMemset(dYT, 0, num_samples * out_features * sizeof(float));
     
     // Update dW = dY.T @ dW.
@@ -550,28 +559,32 @@ void run_linear_backward(Tensor *linear_weights, LayerGradients *grad, LayerGrad
     dim3 dimBlock(TILE_WIDTH, TILE_WIDTH);
     dim3 dimGridTranspose(ceil(num_samples * 1.0 / TILE_WIDTH), ceil(out_features * 1.0 / TILE_WIDTH));
     TransposeMatrixKernel<<<dimGridTranspose, dimBlock>>>(dY->values_d, dYT, out_features, num_samples);
+    gpu_error_check(cudaGetLastError());
 
-    cudaMallocCheck((void**)&updated_dW_d, out_features * in_features * sizeof(float));
+    gpu_error_check(cudaMalloc((void**)&updated_dW_d, out_features * in_features * sizeof(float)));
     dim3 dimGridUpdateDW(ceil(in_features * 1.0 / TILE_WIDTH / THREAD_COARSENING_FACTOR), ceil(out_features * 1.0 / TILE_WIDTH));
     MatMulKernel<<<dimGridUpdateDW, dimBlock>>>(dYT, dW->values_d, updated_dW_d, out_features, num_samples, in_features);
+    gpu_error_check(cudaGetLastError());
 
-    cudaFree(dYT);
-    cudaFree(dW->values_d);
+    gpu_error_check(cudaFree(dYT));
+    gpu_error_check(cudaFree(dW->values_d));
     dW->values_d = updated_dW_d;
     dW->dim[0]   = out_features;
 
     // Update dX = dY @ dX.
     dim3 dimGridUpdateDX(ceil(in_features * 1.0 / TILE_WIDTH / THREAD_COARSENING_FACTOR), ceil(num_samples * 1.0 / TILE_WIDTH));
-    cudaMallocCheck((void**)&updated_dX_d, num_samples * in_features * sizeof(float));
+    gpu_error_check(cudaMalloc((void**)&updated_dX_d, num_samples * in_features * sizeof(float)));
     MatMulKernel<<<dimGridUpdateDX, dimBlock>>>(dY->values_d, dX->values_d, updated_dX_d, num_samples, out_features, in_features);
+    gpu_error_check(cudaGetLastError());
     
-    cudaFree(dX->values_d);
+    gpu_error_check(cudaFree(dX->values_d));
     dX->values_d = updated_dX_d;
     dX->dim[0]   = num_samples;
 
     // Update weights W = W - lr * dW.
     dim3 dimGridUpdateW(ceil(in_features * 1.0 / TILE_WIDTH), ceil(out_features * 1.0 / TILE_WIDTH));
     Update2DGridParameterKernel<<<dimGridUpdateW, dimBlock>>>(linear_weights->values_d, updated_dW_d, out_features, in_features, lr);
+    gpu_error_check(cudaGetLastError());
 }
 
 
@@ -592,8 +605,8 @@ void run_softmax_forward(Tensor *tensor, uint8_t *y_d, LayerGradients *grad, boo
     uint32_t out_size     = num_samples * num_features;
 
     float *X_output_d, *X_exp_sum_d;
-    cudaMallocCheck((void**)&X_output_d, out_size * sizeof(float));
-    cudaMallocCheck((void**)&X_exp_sum_d, num_samples * sizeof(float));
+    gpu_error_check(cudaMalloc((void**)&X_output_d, out_size * sizeof(float)));
+    gpu_error_check(cudaMalloc((void**)&X_exp_sum_d, num_samples * sizeof(float)));
     cudaMemset(X_exp_sum_d, 0, num_samples * sizeof(float));
 
     // TODO: consider the cases where the total size is significantly lower than TILE_WIDTH * TILE_WIDTH.
@@ -602,25 +615,28 @@ void run_softmax_forward(Tensor *tensor, uint8_t *y_d, LayerGradients *grad, boo
     CalcExpAndSumByRowKernel<<<dimGrid, dimBlock>>>(
         tensor->values_d, X_output_d, X_exp_sum_d, num_samples, num_features
     );
+    gpu_error_check(cudaGetLastError());
 
     NormalizeKernel<<<dimGrid, dimBlock>>>(X_output_d, X_exp_sum_d, num_samples, num_features);
+    gpu_error_check(cudaGetLastError());
 
-    cudaFree(X_exp_sum_d);
+    gpu_error_check(cudaFree(X_exp_sum_d));
     
     // Update tensor.
-    cudaFree(tensor->values_d);
+    gpu_error_check(cudaFree(tensor->values_d));
     tensor->values_d = X_output_d;
 
     if (compute_grad) {
         // Compute gradients assuming cross entropy loss.
         float *dX_d;
-        cudaMallocCheck((void**)&dX_d, out_size * sizeof(float));
+        gpu_error_check(cudaMalloc((void**)&dX_d, out_size * sizeof(float)));
         cudaMemset(dX_d, 0, out_size * sizeof(float));
         SoftmaxGradientKernel<<<dimGrid, dimBlock>>>(dX_d, X_output_d, y_d, num_samples, num_features);
+        gpu_error_check(cudaGetLastError());
 
-        Tensor *dX = (Tensor *)mallocCheck(sizeof(Tensor));
+        Tensor *dX = (Tensor *)malloc_check(sizeof(Tensor));
         dX->num_dim = 2;
-        dX->dim = (uint32_t *)mallocCheck(2 * sizeof(uint32_t));
+        dX->dim = (uint32_t *)malloc_check(2 * sizeof(uint32_t));
         dX->dim[0] = tensor->dim[0];
         dX->dim[1] = tensor->dim[1];
         dX->values_d = dX_d;
@@ -637,16 +653,17 @@ float *compute_negative_log_likelihood_log_lost(Tensor *tensor, uint8_t *y_d) {
     uint32_t num_features = tensor->dim[1];
 
     float *out_d;
-    cudaMallocCheck((void**)&out_d, sizeof(float));
+    gpu_error_check(cudaMalloc((void**)&out_d, sizeof(float)));
     cudaMemset(out_d, 0, sizeof(float));
 
     dim3 dimBlock(TILE_WIDTH, TILE_WIDTH);
     dim3 dimGrid(ceil(LABEL_SIZE * 1.0 / (TILE_WIDTH * THREAD_COARSENING_FACTOR)), ceil(num_samples * 1.0 / TILE_WIDTH));
     NegativeLogLikelihoodLogKernel<<<dimGrid, dimBlock>>>(tensor->values_d, y_d, out_d, num_samples, num_features);
+    gpu_error_check(cudaGetLastError());
 
-    float *out = (float *)mallocCheck(sizeof(float));
-    cudaMemcpy(out, out_d, sizeof(float), cudaMemcpyDeviceToHost);
-    cudaFree(out_d);
+    float *out = (float *)malloc_check(sizeof(float));
+    gpu_error_check(cudaMemcpy(out, out_d, sizeof(float), cudaMemcpyDeviceToHost));
+    gpu_error_check(cudaFree(out_d));
 
     return out;
 }
@@ -657,7 +674,7 @@ uint32_t *get_accurate_predictions(Tensor *tensor, uint8_t *y_d) {
     uint32_t num_features = tensor->dim[1];
 
     uint32_t *out_d;
-    cudaMallocCheck((void**)&out_d, sizeof(uint32_t));
+    gpu_error_check(cudaMalloc((void**)&out_d, sizeof(uint32_t)));
     cudaMemset(out_d, 0, sizeof(uint32_t));
 
     uint32_t num_threads = min(num_samples, 1024);
@@ -668,10 +685,11 @@ uint32_t *get_accurate_predictions(Tensor *tensor, uint8_t *y_d) {
         out_d,
         num_samples, num_features
     );
+    gpu_error_check(cudaGetLastError());
 
-    uint32_t *out = (uint32_t *)mallocCheck(sizeof(uint32_t));
-    cudaMemcpy(out, out_d, sizeof(uint32_t), cudaMemcpyDeviceToHost);
-    cudaFree(out_d);
+    uint32_t *out = (uint32_t *)malloc_check(sizeof(uint32_t));
+    gpu_error_check(cudaMemcpy(out, out_d, sizeof(uint32_t), cudaMemcpyDeviceToHost));
+    gpu_error_check(cudaFree(out_d));
 
     return out;
 }

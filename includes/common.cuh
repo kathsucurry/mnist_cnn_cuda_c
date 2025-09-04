@@ -6,10 +6,11 @@
 #define LABEL_SIZE 10
 #define DATASET_SPLIT_TRAIN_PROPORTION 0.6
 #define BATCH_SIZE 256
+#define gpu_error_check(ans) { gpu_assert((ans), __LINE__); }
 
 
-cudaError_t cudaMallocCheck(void **dev_ptr, size_t size);
-void *mallocCheck(size_t size);
+void gpu_assert(cudaError_t code, int line);
+void *malloc_check(size_t size);
 
 
 #endif

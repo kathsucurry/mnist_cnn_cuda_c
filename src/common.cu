@@ -2,17 +2,15 @@
 #include <stdio.h> 
 
 
-cudaError_t cudaMallocCheck(void **dev_ptr, size_t size) {
-    cudaError_t cuda_malloc_return = cudaMalloc(dev_ptr, size);
-    if (cuda_malloc_return == cudaErrorMemoryAllocation) {
-        printf("CUDA malloc failed!\n");
-        exit(EXIT_FAILURE);
-    }
-    return cuda_malloc_return;
+void gpu_assert(cudaError_t code, int line) {
+   if (code != cudaSuccess) {
+      printf("GPUassert: %u %s; line %d\n", code, cudaGetErrorString(code), line);
+      exit(code);
+   }
 }
 
 
-void *mallocCheck(size_t size) {
+void *malloc_check(size_t size) {
     void *malloc_return = malloc(size);
     if (!malloc_return) {
         printf("Malloc failed!\n");

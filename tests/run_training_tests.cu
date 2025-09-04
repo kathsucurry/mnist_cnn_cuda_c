@@ -54,9 +54,9 @@ NetworkOutputs *forward_pass(
     bool compute_grad
 ) {
     uint8_t num_layers_with_grads = 6;
-    LayerGradients *gradients = (LayerGradients *)mallocCheck(num_layers_with_grads * sizeof(LayerGradients));
+    LayerGradients *gradients = (LayerGradients *)malloc_check(num_layers_with_grads * sizeof(LayerGradients));
     
-    uint32_t *image_dim = (uint32_t *)mallocCheck(4 * sizeof(uint32_t));
+    uint32_t *image_dim = (uint32_t *)malloc_check(4 * sizeof(uint32_t));
     image_dim[0] = num_samples;
     image_dim[1] = 1; // Number of channels.
     image_dim[2] = image_height;
@@ -87,7 +87,7 @@ NetworkOutputs *forward_pass(
     run_softmax_forward(output, y_d, &gradients[5], compute_grad);
     compare_tensor("layer 5 softmax", "tests/outputs/output_layer5_softmax.txt", output);
 
-    NetworkOutputs *network_outputs = (NetworkOutputs *)mallocCheck(sizeof(NetworkOutputs));
+    NetworkOutputs *network_outputs = (NetworkOutputs *)malloc_check(sizeof(NetworkOutputs));
     network_outputs->gradients = gradients;
     network_outputs->output = output;
     network_outputs->num_layers = 6;
@@ -128,7 +128,7 @@ void backward_pass(LayerGradients *gradients, NetworkWeights *network_weights, u
 NetworkWeights *train_model(ImageDataset *dataset, uint32_t batch_size) {
     // Prepare the model architecture: conv -> sigmoid -> pooling -> flatten -> linear -> softmax.
     // Initialize conv and linear layer weights using device memory.
-    NetworkWeights *network_weights = (NetworkWeights *)mallocCheck(sizeof(NetworkWeights));
+    NetworkWeights *network_weights = (NetworkWeights *)malloc_check(sizeof(NetworkWeights));
     network_weights->conv2d_weight = initialize_conv_layer_weights(1, 4, 5, 0);
     test_initialize_conv_layer_weights(network_weights->conv2d_weight);
     
@@ -145,8 +145,8 @@ NetworkWeights *train_model(ImageDataset *dataset, uint32_t batch_size) {
     float *train_X_d;
     uint8_t *train_y_d;
 
-    cudaMallocCheck((void**)&train_X_d, batch_size * image_size * sizeof(float));
-    cudaMallocCheck((void**)&train_y_d, batch_size * LABEL_SIZE * sizeof(uint8_t));
+    gpu_error_check(cudaMalloc((void**)&train_X_d, batch_size * image_size * sizeof(float)));
+    gpu_error_check(cudaMalloc((void**)&train_y_d, batch_size * LABEL_SIZE * sizeof(uint8_t)));
 
     shuffle_indices(dataset, 0);
     test_shuffle_indices(dataset);

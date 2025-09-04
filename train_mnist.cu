@@ -38,9 +38,9 @@ NetworkOutputs *forward_pass(
     bool compute_grad
 ) {
     uint8_t num_layers_with_grads = 6;
-    LayerGradients *gradients = (LayerGradients *)mallocCheck(num_layers_with_grads * sizeof(LayerGradients));
+    LayerGradients *gradients = (LayerGradients *)malloc_check(num_layers_with_grads * sizeof(LayerGradients));
     
-    uint32_t *image_dim = (uint32_t *)mallocCheck(4 * sizeof(uint32_t));
+    uint32_t *image_dim = (uint32_t *)malloc_check(4 * sizeof(uint32_t));
     image_dim[0] = num_samples;
     image_dim[1] = 1; // Number of channels.
     image_dim[2] = image_height;
@@ -65,7 +65,7 @@ NetworkOutputs *forward_pass(
     // Layer 5: Softmax layer.
     run_softmax_forward(output, y_d, &gradients[5], compute_grad);
 
-    NetworkOutputs *network_outputs = (NetworkOutputs *)mallocCheck(sizeof(NetworkOutputs));
+    NetworkOutputs *network_outputs = (NetworkOutputs *)malloc_check(sizeof(NetworkOutputs));
     network_outputs->gradients = gradients;
     network_outputs->output = output;
     network_outputs->num_layers = 6;
@@ -172,7 +172,7 @@ NetworkWeights *train_model(ImageDataset *dataset) {
 
     // Prepare the model architecture that includes one conv2d and one linear layers.
     // Initialize conv and linear layer weights using device memory.
-    NetworkWeights *network_weights = (NetworkWeights *)mallocCheck(sizeof(NetworkWeights));
+    NetworkWeights *network_weights = (NetworkWeights *)malloc_check(sizeof(NetworkWeights));
     network_weights->conv2d_weight = initialize_conv_layer_weights(1, 16, 5, 0);
     network_weights->linear_weight = initialize_linear_layer_weights(3136, 10, 1);
 
@@ -186,8 +186,8 @@ NetworkWeights *train_model(ImageDataset *dataset) {
     float *X_d;
     uint8_t *y_d;
 
-    cudaMallocCheck((void**)&X_d, BATCH_SIZE * image_size * sizeof(float));
-    cudaMallocCheck((void**)&y_d, BATCH_SIZE * LABEL_SIZE * sizeof(uint8_t));
+    gpu_error_check(cudaMalloc((void**)&X_d, BATCH_SIZE * image_size * sizeof(float)));
+    gpu_error_check(cudaMalloc((void**)&y_d, BATCH_SIZE * LABEL_SIZE * sizeof(uint8_t)));
 
     for (uint32_t epoch_index = 0; epoch_index < NUM_EPOCHS; ++epoch_index) {
         // Run training.

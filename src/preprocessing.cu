@@ -7,14 +7,14 @@
 
 
 ImageDataset *prepare_dataset(MNISTDataset *dataset) {
-    uint8_t *copy_labels = (uint8_t *)mallocCheck(dataset->num_samples * sizeof(uint8_t));
-    Image *copy_images = (Image *)mallocCheck(dataset->num_samples * sizeof(Image));
-    uint32_t *copy_view_indices = (uint32_t *)mallocCheck(dataset->num_samples * sizeof(uint32_t));
+    uint8_t *copy_labels = (uint8_t *)malloc_check(dataset->num_samples * sizeof(uint8_t));
+    Image *copy_images = (Image *)malloc_check(dataset->num_samples * sizeof(Image));
+    uint32_t *copy_view_indices = (uint32_t *)malloc_check(dataset->num_samples * sizeof(uint32_t));
     for (uint32_t i = 0; i < dataset->num_samples; ++i) {
         copy_labels[i] = dataset->labels[i];
         copy_view_indices[i] = i;
         MNISTImage image = dataset->images[i];
-        float *copy_pixels = (float *)mallocCheck(image.height * image.width * sizeof(float));
+        float *copy_pixels = (float *)malloc_check(image.height * image.width * sizeof(float));
         for (uint32_t row = 0; row < image.height; ++row)
             for (uint32_t col = 0; col < image.width; ++col)
                 copy_pixels[row * image.width + col] = (float) image.pixels[row * image.width + col];
@@ -23,7 +23,7 @@ ImageDataset *prepare_dataset(MNISTDataset *dataset) {
         copy_images[i].width = image.width;
     }
 
-    ImageDataset *copy_dataset = (ImageDataset *)mallocCheck(sizeof(ImageDataset));
+    ImageDataset *copy_dataset = (ImageDataset *)malloc_check(sizeof(ImageDataset));
     copy_dataset->num_samples = dataset->num_samples;
     copy_dataset->labels = copy_labels;
     copy_dataset->images = copy_images;

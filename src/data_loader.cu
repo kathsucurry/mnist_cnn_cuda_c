@@ -104,9 +104,9 @@ MNISTImage *_load_images_from_idx_file(const char *file_path, uint32_t *num_samp
         return NULL;
 
     uint32_t image_size = image_height * image_width;
-    MNISTImage *images = (MNISTImage *)mallocCheck(*num_samples * sizeof(MNISTImage));
+    MNISTImage *images = (MNISTImage *)malloc_check(*num_samples * sizeof(MNISTImage));
     for (int i = 0; i < *num_samples; ++i) {
-        uint8_t *pixels = (uint8_t *)mallocCheck(image_size * sizeof(uint8_t));
+        uint8_t *pixels = (uint8_t *)malloc_check(image_size * sizeof(uint8_t));
         fread(pixels, image_size * sizeof(uint8_t), 1, stream);
 
         MNISTImage image = {.pixels=pixels, .height=image_height, .width=image_width};
@@ -137,7 +137,7 @@ uint8_t *_load_labels_from_idx_file(const char *file_path, uint32_t *num_samples
     if (*num_samples == invalid_return_value)
         return NULL;
     
-    uint8_t *labels = (uint8_t *)mallocCheck(*num_samples * sizeof(uint8_t));
+    uint8_t *labels = (uint8_t *)malloc_check(*num_samples * sizeof(uint8_t));
     fread(labels, *num_samples * sizeof(uint8_t), 1, stream);
     fclose(stream);
 
@@ -159,7 +159,7 @@ MNISTDataset *load_mnist_dataset(const char *images_file_path, const char *label
         printf("The number of images (n=%u) and labels (n=%u) are not consistent.\n", num_images_samples, num_labels_samples);
     }
 
-    MNISTDataset *dataset = (MNISTDataset *)mallocCheck(sizeof(MNISTDataset));
+    MNISTDataset *dataset = (MNISTDataset *)malloc_check(sizeof(MNISTDataset));
     dataset->images = images;
     dataset->labels = labels;
     dataset->num_samples = num_images_samples;
@@ -198,11 +198,11 @@ ImageDataset *split_dataset(ImageDataset *dataset, uint32_t begin_index, uint32_
         return NULL;
     }
 
-    ImageDataset *split_dataset = (ImageDataset *)mallocCheck(sizeof(ImageDataset));
+    ImageDataset *split_dataset = (ImageDataset *)malloc_check(sizeof(ImageDataset));
     split_dataset->num_samples = num_samples;
-    split_dataset->images = (Image *)mallocCheck(num_samples * sizeof(Image));
-    split_dataset->labels = (uint8_t *)mallocCheck(num_samples * sizeof(uint8_t));
-    split_dataset->view_indices = (uint32_t *)mallocCheck(num_samples * sizeof(uint32_t));
+    split_dataset->images = (Image *)malloc_check(num_samples * sizeof(Image));
+    split_dataset->labels = (uint8_t *)malloc_check(num_samples * sizeof(uint8_t));
+    split_dataset->view_indices = (uint32_t *)malloc_check(num_samples * sizeof(uint32_t));
     for (uint32_t i = 0; i < num_samples; ++i) {
         uint32_t old_index = dataset->view_indices[begin_index + i];
         split_dataset->images[i] = dataset->images[old_index];
