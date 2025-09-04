@@ -42,7 +42,7 @@ NetworkOutputs *forward_pass(
     image_dim[1] = 1; // Number of channels.
     image_dim[2] = image_height;
     image_dim[3] = image_width;
-    Tensor *output = initialize_tensor(X_d, 4, image_dim);
+    Tensor *output = generate_tensor(X_d, image_dim, 4);
     
     // Layer 0: 2D convolution layer.
     run_conv2d_forward(output, network_weights_d->conv2d_weight, &gradients[0], compute_grad);
@@ -128,14 +128,14 @@ EpochOutput run_one_epoch(
             update_weight
         );
             
-        float *loss = compute_negative_log_likelihood_log_lost(network_outputs->output, y_d);
+        float *loss = compute_negative_log_likelihood_log_loss(network_outputs->output, y_d);
         loss_sum += *loss;
 
         if (update_weight)
             backward_pass(network_outputs->gradients, network_weights, num_samples_in_batch, LEARNING_RATE);
 
         if (compute_accuracy) {
-            correct_pred_sum += *(get_accurate_predictions(network_outputs->output, y_d));
+            correct_pred_sum += *(get_accurate_predictions_count(network_outputs->output, y_d));
         }
 
         free(loss);

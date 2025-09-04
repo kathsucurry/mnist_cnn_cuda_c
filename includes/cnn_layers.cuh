@@ -87,40 +87,236 @@ typedef struct {
 
 
 /**
- * Computes the tensor size
+ * Computes the tensor size.
+ * 
+ * @param dim The dimension array.
+ * @param dim_size The size of the dimension array.
+ * @return The size of the tensor.
  */
-uint32_t get_tensor_size(const uint8_t dim_size, const uint32_t *dim);
-Tensor *initialize_tensor(float *X, uint8_t dim_size, uint32_t *dim);
+uint32_t get_tensor_size(const uint32_t *dim, const uint8_t dim_size);
+
+
+/**
+ * Generates a tensor object.
+ * 
+ * @param X The values of the tensor stored in row-major format.
+ * @param dim The dimension array of the tensor.
+ * @param dim_size The size of the dimension array.
+ * @return The newly generated tensor.
+ */
+Tensor *generate_tensor(float *X, uint32_t *dim, uint8_t dim_size);
+
+
+/**
+ * Deep copies a tensor.
+ * 
+ * @param tensor The tensor to be copied.
+ * @return A new tensor copied from the input tensor.
+ */
 Tensor *deep_copy_tensor(Tensor *tensor);
+
+
+/**
+ * Deallocates a tensor.
+ * 
+ * @param tensor The tensor to be deallocated.
+ */
 void free_tensor(Tensor *tensor);
+
+
+/**
+ * Deallocates a LayerGradients object.
+ * 
+ * @param gradients The gradients to be deallocated.
+ */
 void free_layer_gradients(LayerGradients *gradients);
+
+
+/**
+ * Deallocates a NetworkWeights object.
+ * 
+ * @param weights The network weights to be deallocated.
+ */
 void free_network_weights(NetworkWeights *weights);
+
+
+/**
+ * Deallocates a NetworkOutputs object.
+ *  Make sure to deallocate the gradient content if not empty.
+ * 
+ * @param output The network output to be deallocated.
+ * @param include_grad Whether the network output contains gradient information (i.e., if gradients are computed).
+ */
 void free_network_outputs(NetworkOutputs *output, bool include_grad);
 
-Tensor *initialize_conv_layer_weights(uint32_t in_channels, uint32_t out_channels, uint8_t filter_size, uint32_t seed);
-Tensor *initialize_linear_layer_weights(uint32_t in_channels, uint32_t out_channels, uint32_t seed);
+
+/**
+ * Initializes conv2d layer weights using uniform Xaiver initialization.
+ *  For simplicity, assume that stride is always 1.
+ * 
+ * @param in_channels The size of input channels.
+ * @param out_channels The size of output channels.
+ * @param filter_length The size/length of the filter.
+ * @param seed The randomization seed
+ * @return A weight tensor with dimension [out_channels, in_channels, filter_length, filter_length].
+ */
+Tensor *initialize_conv_layer_weights(uint32_t in_channels, uint32_t out_channels, uint8_t filter_length, uint32_t seed);
+
+
+/**
+ * Initializes linear layer weights using uniform Xaiver initialization.
+ * 
+ * @param in_features The size of input features.
+ * @param out_features The size of output features.
+ * @param seed The randomization seed
+ * @return A weight tensor with dimension [out_features, in_features].
+ */
+Tensor *initialize_linear_layer_weights(uint32_t in_features, uint32_t out_features, uint32_t seed);
 
 /* Forward layer functions */
 
-void run_conv2d_forward(Tensor *output, Tensor *filters, LayerGradients *grad, bool compute_grad);
-void run_conv2d_backward(Tensor *conv2d_weights, LayerGradients *grad, LayerGradients *next_layer_grad, float learning_rate);
+/**
+ * Performs conv2d forward pass.
+ *  The function replaces X tensor in-place with the output of the conv2d; the new dimension: [num_samples, out_channels, out_height, out_width] where
+ *  `out_height = in_height - filter_length + 1` and `out_width  = in_width - filter_length + 1`.
+ * 
+ * @param X The X tensor with dimension [num_samples, in_channels, in_height, in_width], to be updated in-place with the output of the conv2d forward pass.
+ * @param filters The filter tensor with dimension [out_channels, in_channels, filter_length, filter_length].
+ * @param grad The gradient tensor for storing W and X; dW and dX will be computed during backward pass.
+ * @param compute_grad Whether to compute the gradients (e.g., it's not needed for evaluation purposes).
+ */
+void run_conv2d_forward(Tensor *X, Tensor *filters, LayerGradients *grad, bool compute_grad);
 
-void run_sigmoid_forward(Tensor *tensor, LayerGradients *grad, bool compute_grad);
+
+/**
+ * Performs conv2d backward pass: computing dW and dX, then updating the weights given learning rate.
+ * 
+ * @param conv2d_weights The current weights of the conv2d layer.
+ * @param grad Contains W and X of the layer for computing dW and dX.
+ * @param next_layer_grad The gradients from the next layer for obtaining dY.
+ * @param lr The learning rate for updating the weights.
+ */
+void run_conv2d_backward(Tensor *conv2d_weights, LayerGradients *grad, LayerGradients *next_layer_grad, float lr);
+
+
+/**
+ * Performs sigmoid activation function.
+ *  The function replaces X tensor in-place with the output of the sigmoid; no dimension change occurs.
+ * 
+ * @param X The input tensor, to be updated in-place with the output of the sigmoid function.
+ * @param grad The gradient tensor for storing the layer's dX.
+ * @param compute_grad Whether to compute the gradients (e.g., it's not needed for evaluation purposes).
+ */
+void run_sigmoid_forward(Tensor *X, LayerGradients *grad, bool compute_grad);
+
+
+/**
+ * Performs sigmoid backward pass to compute dX using chain rule.
+ * 
+ * @param grad Contains dX of the layer before performing chain rule.
+ * @param next_layer_grad The gradients from the next layer for obtaining dY.
+ */
 void run_sigmoid_backward(LayerGradients *grad, LayerGradients *next_layer_grad);
 
-void run_pooling_forward(Tensor *tensor, uint32_t kernel_length, pooling_type pool_type, LayerGradients *grad, bool compute_grad);
+
+/**
+ * Performs pooling forward pass.
+ *  Assumes the stride is always the kernel size.
+ * 
+ * @param X The input tensor, to be updated in-place with the output of the pooling function.
+ * @param kernel_length The kernel length.
+ * @param pool_type Either MAX or MEAN pooling.
+ * @param grad The gradient tensor for storing the layer's dX.
+ * @param compute_grad Whether to compute the gradients (e.g., it's not needed for evaluation purposes).
+ */
+void run_pooling_forward(Tensor *X, uint32_t kernel_length, pooling_type pool_type, LayerGradients *grad, bool compute_grad);
+
+
+/**
+ * Performs pooling backward pass to compute dX using chain rule.
+ * 
+ * @param kernel_length The length of the kernel.
+ * @param grad Contains dX of the layer before performing chain rule.
+ * @param next_layer_grad The gradients from the next layer for obtaining dY.
+ */
 void run_pooling_backward(uint32_t kernel_length, LayerGradients *grad, LayerGradients *next_layer_grad);
 
-void run_flatten_forward(Tensor *tensor);
+
+/**
+ * Reshapes the input into a one-dimensional tensor.
+ * 
+ * @param X The input tensor. It will be replaced with a [num_samples, size]-dimensional tensor where size = the
+ *  input tensor size / num_samples.
+ */
+void run_flatten_forward(Tensor *X);
+
+
+/**
+ * Reshapes dY with dimension [num_samples, num_features] to [num_samples, num_channels, kernel_length, kernel_length].
+ *  The number of channels is derived by num_features / (kernel_length * kernel_length).
+ * 
+ * @param num_samples The number of samples.
+ * @param kernel_length The kernel length.
+ * @param grad Contains dX of the layer before performing chain rule.
+ * @param next_layer_grad The gradients from the next layer for obtaining dY.
+ */
 void run_flatten_backward(uint32_t num_samples, uint8_t kernel_length, LayerGradients *grad, LayerGradients *next_layer_grad);
 
+
+/**
+ * Performs linear forward pass.
+ * 
+ * @param X The X tensor with dimension [num_samples, in_features], to be updated in-place with the output of the linear pass.
+ *  The output dimension would be [num_samples, out_features].
+ * @param linear_weights The weights of the linear layer with dimension [out_features, in_features].
+ * @param grad The gradient tensor for storing dW and dX, which is essentially X and W, respectively.
+ * @param compute_grad Whether to compute the gradients (e.g., it's not needed for evaluation purposes).
+ */
 void run_linear_forward(Tensor *X, Tensor *linear_weights, LayerGradients *grad, bool compute_grad);
+
+
+/**
+ * Performs linear backward pass: computing dW and dX through the chain rule, then updating the weights given learning rate.
+ * 
+ * @param linear_weights The current weights of the linear layer.
+ * @param grad Contains dW and dX of the layer.
+ * @param next_layer_grad The gradients from the next layer for obtaining dY.
+ * @param lr The learning rate for updating the weights.
+ */
 void run_linear_backward(Tensor *linear_weights, LayerGradients *grad, LayerGradients *next_layer_grad, float lr);
 
-void run_softmax_forward(Tensor *tensor, uint8_t *y_d, LayerGradients *grad, bool compute_grad);
 
-float *compute_negative_log_likelihood_log_lost(Tensor *tensor, uint8_t *y_d);
+/**
+ * Performs softmax activation function and computes the gradients.
+ * 
+ * @param X The input tensor, to be updated in-place with the output of the softmax function.
+ * @param y_d The one-hot encodings of the labels, to be used for computing gradients.
+ * @param grad The gradient tensor for storing the layer's dX.
+ * @param compute_grad Whether to compute the gradients (e.g., it's not needed for evaluation purposes).
+ */
+void run_softmax_forward(Tensor *X, uint8_t *y_d, LayerGradients *grad, bool compute_grad);
 
-uint32_t *get_accurate_predictions(Tensor *logits, uint8_t *y_d);
+
+/**
+ * Computes the negative log likelihood(log(tensor)) loss to obtain the cross-entropy loss.
+ *  Recall that cross-entropy loss = negative log likelihood(log softmax). In this project specifically,
+ *  softmax activation has been run (instead of log softmax for easier gradient computation), so we still
+ *  need to perform log on the softmax output to get the input to the NLL loss computation.
+ * 
+ * @param input_tensor The input tensor (i.e., the output of the softmax activation function); dimension: [num_samples, label_size].
+ * @param y_d The one-hot encodings of the labels; dimension: [num_samples, label_size].
+ * @return The NLL loss value.
+ */
+float *compute_negative_log_likelihood_log_loss(Tensor *input_tensor, uint8_t *y_d);
+
+
+/**
+ * Get the count of accurate predictions.
+ * 
+ * @param input_tensor The input tensor (i.e., the output of the softmax activation function); dimension: [num_samples, label_size].
+ * @param y_d The one-hot encodings of the labels; dimension: [num_samples, label_size].
+ * @return The number of accurate predictions.
+ */
+uint32_t *get_accurate_predictions_count(Tensor *input_tensor, uint8_t *y_d);
 
 #endif

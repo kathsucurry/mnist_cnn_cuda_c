@@ -61,7 +61,7 @@ NetworkOutputs *forward_pass(
     image_dim[1] = 1; // Number of channels.
     image_dim[2] = image_height;
     image_dim[3] = image_width;
-    Tensor *output = initialize_tensor(X_d, 4, image_dim);
+    Tensor *output = generate_tensor(X_d, image_dim, 4);
     
     // Layer 0: 2D convolution layer.
     run_conv2d_forward(output, network_weights_d->conv2d_weight, &gradients[0], compute_grad);
@@ -161,7 +161,7 @@ NetworkWeights *train_model(ImageDataset *dataset, uint32_t batch_size) {
 
     NetworkOutputs *network_outputs = forward_pass(train_X_d, train_y_d, network_weights, image_height, image_width, batch_size, true);
     
-    float *loss = compute_negative_log_likelihood_log_lost(network_outputs->output, train_y_d);
+    float *loss = compute_negative_log_likelihood_log_loss(network_outputs->output, train_y_d);
     compare_float("cross entropy loss", "tests/outputs/output_loss.txt", loss);
 
     backward_pass(network_outputs->gradients, network_weights, batch_size, LEARNING_RATE);

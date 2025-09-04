@@ -5,22 +5,18 @@
 #include "../includes/common.cuh"
 
 
-/**
- * (Not optimized) Conv2 kernel implementation, following the method in chapter 16.3 (Fig. 16.13,14).
- */
 __global__ void Conv2DForwardKernel(
-    float *X, float *Y,
-    float *filters,
+    float *Y, float *X, float *filters,
     uint32_t kernel_length,
     uint32_t in_channels,
-    uint32_t grid_height, uint32_t grid_width,
+    uint32_t num_tiles_h,
     uint32_t in_height, uint32_t in_width
 ) {
     uint32_t out_height = in_height - kernel_length + 1;
     uint32_t out_width  = in_width - kernel_length + 1;
     uint32_t out_channel_idx = blockIdx.x;
-    uint32_t out_height_idx  = (blockIdx.y / grid_width)*TILE_WIDTH + threadIdx.y;
-    uint32_t out_width_idx   = (blockIdx.y % grid_width)*TILE_WIDTH + threadIdx.x;
+    uint32_t out_height_idx  = (blockIdx.y / num_tiles_h)*TILE_WIDTH + threadIdx.y;
+    uint32_t out_width_idx   = (blockIdx.y % num_tiles_h)*TILE_WIDTH + threadIdx.x;
     uint32_t sample_idx      = blockIdx.z;
     uint32_t out_channels = gridDim.x;
 
@@ -57,14 +53,14 @@ __global__ void Conv2DBackwardXGradKernel(
     float *dX, float *dY, float *W,
     uint32_t kernel_length,
     uint32_t out_channels,
-    uint32_t grid_heigth, uint32_t grid_width,
+    uint32_t num_tiles_h,
     uint32_t in_height, uint32_t in_width
 ) {
     uint32_t out_height     = in_height - kernel_length + 1;
     uint32_t out_width      = in_width - kernel_length + 1;
     uint32_t in_channel_idx = blockIdx.x;
-    uint32_t in_height_idx  = (blockIdx.y / grid_width)*TILE_WIDTH + threadIdx.y;
-    uint32_t in_width_idx   = (blockIdx.y % grid_width)*TILE_WIDTH + threadIdx.x;
+    uint32_t in_height_idx  = (blockIdx.y / num_tiles_h)*TILE_WIDTH + threadIdx.y;
+    uint32_t in_width_idx   = (blockIdx.y % num_tiles_h)*TILE_WIDTH + threadIdx.x;
     uint32_t sample_idx     = blockIdx.z;
     uint32_t in_channels    = gridDim.x;
 
@@ -102,14 +98,14 @@ __global__ void Conv2DBackwardXGradKernel(
 
 __global__ void Conv2DBackwardWGradKernel(
     float *dW, float *dY, float *X,
-    uint32_t kernel_length,
     uint32_t num_samples,
-    uint32_t grid_height, uint32_t grid_width,
+    uint32_t kernel_length,
+    uint32_t num_tiles_h,
     uint32_t out_height, uint32_t out_width
 ) {
     uint32_t in_channel_idx  = blockIdx.x;
-    uint32_t filter_row_idx  = (blockIdx.y / grid_width)*TILE_WIDTH + threadIdx.y;
-    uint32_t filter_col_idx  = (blockIdx.y % grid_width)*TILE_WIDTH + threadIdx.x;
+    uint32_t filter_row_idx  = (blockIdx.y / num_tiles_h)*TILE_WIDTH + threadIdx.y;
+    uint32_t filter_col_idx  = (blockIdx.y % num_tiles_h)*TILE_WIDTH + threadIdx.x;
     uint32_t out_channel_idx = blockIdx.z;
     uint32_t in_channels     = gridDim.x;
     uint32_t out_channels    = gridDim.z;
@@ -146,14 +142,14 @@ __global__ void Conv2DBackwardWGradKernel(
 
 
 __global__ void SigmoidForwardKernel(
-    float *X, float *Y,
+    float *Y, float *X,
     float *grad,
-    uint32_t grid_height, uint32_t grid_width,
+    uint32_t num_tiles_h,
     uint32_t out_height, uint32_t out_width
 ) {
     uint32_t out_channel_idx = blockIdx.x;
-    uint32_t out_height_idx  = (blockIdx.y / grid_width)*TILE_WIDTH + threadIdx.y;
-    uint32_t out_width_idx   = (blockIdx.y % grid_width)*TILE_WIDTH + threadIdx.x;
+    uint32_t out_height_idx  = (blockIdx.y / num_tiles_h)*TILE_WIDTH + threadIdx.y;
+    uint32_t out_width_idx   = (blockIdx.y % num_tiles_h)*TILE_WIDTH + threadIdx.x;
     uint32_t sample_idx      = blockIdx.z;
     uint32_t num_channels = gridDim.x;
 
@@ -175,12 +171,12 @@ __global__ void SigmoidForwardKernel(
 
 __global__ void MultiplyKernel(
     float *X1, float *X2,
-    uint32_t grid_height, uint32_t grid_width,
+    uint32_t num_tiles_h,
     uint32_t feature_height, uint32_t feature_width
 ) {
     uint32_t num_channel_idx = blockIdx.x;
-    uint32_t out_height_idx  = (blockIdx.y / grid_width)*TILE_WIDTH + threadIdx.y;
-    uint32_t out_width_idx   = (blockIdx.y % grid_width)*TILE_WIDTH + threadIdx.x;
+    uint32_t out_height_idx  = (blockIdx.y / num_tiles_h)*TILE_WIDTH + threadIdx.y;
+    uint32_t out_width_idx   = (blockIdx.y % num_tiles_h)*TILE_WIDTH + threadIdx.x;
     uint32_t sample_idx      = blockIdx.z;
     uint32_t num_channels = gridDim.x;
 
@@ -195,24 +191,18 @@ __global__ void MultiplyKernel(
 }
 
 
-/**
- * Perform either max or mean pooling forward layer.
- * 
- * For now, assume that the stride is always kernel_length and the input width & height
- * are always divisible by kernel_length.
- */
 __global__ void PoolForwardKernel(
-    float *X, float *Y,
+    float *Y, float *X, 
     pooling_type pool_type,
     float *grad,
     uint32_t kernel_length,
-    uint32_t grid_height, uint32_t grid_width,
+    uint32_t num_tiles_h,
     uint32_t in_height, uint32_t in_width,
     uint32_t out_height, uint32_t out_width
 ) {
     uint32_t num_channel_idx = blockIdx.x;
-    uint32_t out_height_idx  = (blockIdx.y / grid_width)*TILE_WIDTH + threadIdx.y;
-    uint32_t out_width_idx   = (blockIdx.y % grid_width)*TILE_WIDTH + threadIdx.x;
+    uint32_t out_height_idx  = (blockIdx.y / num_tiles_h)*TILE_WIDTH + threadIdx.y;
+    uint32_t out_width_idx   = (blockIdx.y % num_tiles_h)*TILE_WIDTH + threadIdx.x;
     uint32_t sample_idx      = blockIdx.z;
     uint32_t num_channels = gridDim.x;
 
@@ -254,40 +244,40 @@ __global__ void PoolForwardKernel(
 
 
 __global__ void PoolBackwardKernel(
-    float *grad, float *next_layer_grad,
+    float *dX, float *dY,
     uint32_t kernel_length,
-    uint32_t grid_height, uint32_t grid_width,
-    uint32_t grad_height, uint32_t grad_width,
-    uint32_t next_layer_grad_height, uint32_t next_layer_grad_width
+    uint32_t num_tiles_h,
+    uint32_t dX_height, uint32_t dX_width,
+    uint32_t dY_height, uint32_t dY_width
 ) {
     uint32_t num_channel_idx = blockIdx.x;
-    uint32_t grad_height_idx = (blockIdx.y / grid_width)*TILE_WIDTH + threadIdx.y;
-    uint32_t grad_width_idx  = (blockIdx.y % grid_width)*TILE_WIDTH + threadIdx.x;
+    uint32_t dX_height_idx = (blockIdx.y / num_tiles_h)*TILE_WIDTH + threadIdx.y;
+    uint32_t dX_width_idx  = (blockIdx.y % num_tiles_h)*TILE_WIDTH + threadIdx.x;
     uint32_t sample_idx      = blockIdx.z;
     uint32_t num_channels = gridDim.x;
 
-    if (grad_height_idx >= grad_height || grad_width_idx >= grad_width)
+    if (dX_height_idx >= dX_height || dX_width_idx >= dX_width)
         return;
     
-    uint32_t index = (sample_idx * num_channels * grad_height * grad_width) + 
-            (num_channel_idx * grad_height * grad_width) +
-            (grad_height_idx * grad_width) +
-            grad_width_idx;
-    uint32_t next_layer_grad_index = (sample_idx * num_channels * next_layer_grad_height * next_layer_grad_width) + 
-            (num_channel_idx * next_layer_grad_height * next_layer_grad_width) +
-            (grad_height_idx / kernel_length * next_layer_grad_width) +
-            grad_width_idx / kernel_length;
-    grad[index] *= next_layer_grad[next_layer_grad_index];
+    uint32_t index = (sample_idx * num_channels * dX_height * dX_width) + 
+            (num_channel_idx * dX_height * dX_width) +
+            (dX_height_idx * dX_width) +
+            dX_width_idx;
+    uint32_t dY_index = (sample_idx * num_channels * dY_height * dY_width) + 
+            (num_channel_idx * dY_height * dY_width) +
+            (dX_height_idx / kernel_length * dY_width) +
+            dX_width_idx / kernel_length;
+    dX[index] *= dY[dY_index];
 }
 
 
 __global__ void LinearForwardKernel(
-    float *X, float *A, float *Y,
+    float *Y, float *X, float *W,
     uint32_t num_samples,
     uint32_t in_features, uint32_t out_features
 ) {
     __shared__ float  shared_X[TILE_WIDTH][TILE_WIDTH];
-    __shared__ float shared_AT[TILE_WIDTH][TILE_WIDTH];
+    __shared__ float shared_WT[TILE_WIDTH][TILE_WIDTH];
 
     // Identify the row and column of the output element.
     uint32_t row = blockIdx.y * TILE_WIDTH + threadIdx.y;
@@ -310,17 +300,17 @@ __global__ void LinearForwardKernel(
     
         for (uint8_t c = 0; c < THREAD_COARSENING_FACTOR; ++c) {
             uint32_t col = col_offset + c * TILE_WIDTH;
-            uint32_t A_index = col * in_features + phase * TILE_WIDTH + threadIdx.y;
+            uint32_t W_index = col * in_features + phase * TILE_WIDTH + threadIdx.y;
 
             // Collaboratively load the features2 tile into shared memory.
             if (phase * TILE_WIDTH + threadIdx.y < in_features && col < out_features)
-                shared_AT[threadIdx.y][threadIdx.x] = A[A_index];
+                shared_WT[threadIdx.y][threadIdx.x] = W[W_index];
             else
-                shared_AT[threadIdx.y][threadIdx.x] = 0.0f;
+                shared_WT[threadIdx.y][threadIdx.x] = 0.0f;
             __syncthreads();
 
             for (uint32_t i = 0; i < TILE_WIDTH; ++i)
-                out_values[c] += shared_X[threadIdx.y][i] * shared_AT[i][threadIdx.x];
+                out_values[c] += shared_X[threadIdx.y][i] * shared_WT[i][threadIdx.x];
             __syncthreads();
         }
     }
@@ -334,8 +324,7 @@ __global__ void LinearForwardKernel(
 
 
 __global__ void MatMulKernel(   
-    float *X, float *A,
-    float *Y,
+    float *Y, float *X, float *A,
     uint32_t X_height, uint32_t X_width, uint32_t A_width
 ) {
     __shared__ float  shared_X[TILE_WIDTH][TILE_WIDTH];
@@ -385,7 +374,7 @@ __global__ void MatMulKernel(
 }
 
 
-__global__ void TransposeMatrixKernel(float *X, float *Y, uint32_t Y_height, uint32_t Y_width) {
+__global__ void TransposeMatrixKernel(float *Y, float *X, uint32_t Y_height, uint32_t Y_width) {
     uint32_t col = blockIdx.x * blockDim.x + threadIdx.x;
     uint32_t row = blockIdx.y * blockDim.y + threadIdx.y;
    
@@ -396,7 +385,7 @@ __global__ void TransposeMatrixKernel(float *X, float *Y, uint32_t Y_height, uin
 }
 
 
-__global__ void Update2DGridParameterKernel(float *W, float *dW, uint32_t height, uint32_t width, float lr) {
+__global__ void UpdateLinearWeightsKernel(float *W, float *dW, uint32_t height, uint32_t width, float lr) {
     uint32_t col = blockIdx.x * blockDim.x + threadIdx.x;
     uint32_t row = blockIdx.y * blockDim.y + threadIdx.y;
     
@@ -407,13 +396,13 @@ __global__ void Update2DGridParameterKernel(float *W, float *dW, uint32_t height
 }
 
 
-__global__ void Update3DGridParameterKernel(
-    float *W, float *dW, uint32_t height, uint32_t width, uint32_t grid_height, uint32_t grid_width, float lr
+__global__ void UpdateConv2DWeightsKernel(
+    float *W, float *dW, uint32_t height, uint32_t width, uint32_t num_tiles_h, float lr
 ) {
     uint32_t in_channel_idx  = blockIdx.x;
     uint32_t in_channels     = gridDim.x;
-    uint32_t filter_row_idx  = (blockIdx.y / grid_width)*TILE_WIDTH + threadIdx.y;
-    uint32_t filter_col_idx  = (blockIdx.y % grid_width)*TILE_WIDTH + threadIdx.x;
+    uint32_t filter_row_idx  = (blockIdx.y / num_tiles_h)*TILE_WIDTH + threadIdx.y;
+    uint32_t filter_col_idx  = (blockIdx.y % num_tiles_h)*TILE_WIDTH + threadIdx.x;
     uint32_t out_channel_idx = blockIdx.z;
     
     if (filter_row_idx >= height || filter_col_idx >= width)
@@ -428,30 +417,30 @@ __global__ void Update3DGridParameterKernel(
 
 
 __global__ void CalcExpAndSumByRowKernel(
-    float *X, float *exp_X, float *sum_exp_X, uint32_t num_samples, uint32_t num_features
+    float *exp_X, float *sum_exp_X, float *X, uint32_t height, uint32_t width
 ) {
     uint32_t col = blockDim.x * blockIdx.x + threadIdx.x;
     uint32_t row = blockDim.y * blockIdx.y + threadIdx.y;
-    if (col >= num_features || row >= num_samples)
+    if (col >= width || row >= height)
         return;
     
-    float value = expf(X[row * num_features + col]);
+    float value = expf(X[row * width + col]);
     atomicAdd(&sum_exp_X[row], value);
-    exp_X[row * num_features + col] = value;
+    exp_X[row * width + col] = value;
 }
 
 
-__global__ void NormalizeKernel(float *X, float *sum, uint32_t num_samples, uint32_t num_features) {
+__global__ void NormalizeKernel(float *X, float *sum_row, uint32_t height, uint32_t width) {
     uint32_t col = blockDim.x * blockIdx.x + threadIdx.x;
     uint32_t row = blockDim.y * blockIdx.y + threadIdx.y;
-    if (col >= num_features || row >= num_samples)
+    if (col >= width || row >= height)
         return;
     
-    X[row * num_features + col] /= sum[row];
+    X[row * width + col] /= sum_row[row];
 }
 
 
-__global__ void NegativeLogLikelihoodLogKernel(const float *X, const uint8_t *y, float *out, uint32_t num_samples, uint32_t num_features) {
+__global__ void NegativeLogLikelihoodLogKernel(float *out, const float *X, const uint8_t *y, uint32_t num_samples, uint32_t num_features) {
     uint32_t col_offset = blockDim.x * blockIdx.x * THREAD_COARSENING_FACTOR + threadIdx.x;
     uint32_t row        = blockDim.y * blockIdx.y + threadIdx.y;
 
@@ -472,19 +461,19 @@ __global__ void NegativeLogLikelihoodLogKernel(const float *X, const uint8_t *y,
 }
 
 
-__global__ void SoftmaxGradientKernel(float *dX_d, const float *output, const uint8_t *y, uint32_t num_samples, uint32_t num_features) {
+__global__ void SoftmaxGradientKernel(float *dX, const float *softmax_output, const uint8_t *y, uint32_t num_samples, uint32_t num_features) {
     uint32_t col = blockDim.x * blockIdx.x + threadIdx.x;
     uint32_t row = blockDim.y * blockIdx.y + threadIdx.y;
     if (col >= num_features || row >= num_samples)
         return;
 
     // Make sure to normalize by the number of samples.
-    dX_d[row * num_features + col] = (output[row * num_features + col] - y[row * num_features + col]) / num_samples;
+    dX[row * num_features + col] = (softmax_output[row * num_features + col] - y[row * num_features + col]) / num_samples;
 }
 
 
-__global__ void GetAccuratePredKernel(
-    const float *X, const uint8_t *y, uint32_t *sum, uint32_t num_samples, uint32_t num_features
+__global__ void GetAccuratePredCountKernel(
+    uint32_t *count, const float *input_tensor, const uint8_t *y, uint32_t num_samples, uint32_t num_features
 ) {
     uint32_t sample_index = blockDim.x * blockIdx.x + threadIdx.x;
     if (sample_index >= num_samples)
@@ -494,11 +483,11 @@ __global__ void GetAccuratePredKernel(
     uint32_t argmax_idx = 0;
     for (uint32_t label_idx = 0; label_idx < num_features; ++label_idx) {
         uint32_t index = sample_index * num_features + label_idx;
-        if (X[index] > max_logit) {
-            max_logit = X[index];
+        if (input_tensor[index] > max_logit) {
+            max_logit = input_tensor[index];
             argmax_idx = label_idx;
         }
     }
     if (y[sample_index * num_features + argmax_idx] == 1)
-        atomicAdd(&sum[0], 1);
+        atomicAdd(&count[0], 1);
 }

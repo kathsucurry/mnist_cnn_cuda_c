@@ -82,6 +82,7 @@ typedef struct {
 
 /**
  * Deallocates MNIST images.
+ * 
  * @param images The corresponding MNIST images to be deallocated.
  * @param count The number of MNIST images to be allocated.
  */
@@ -90,6 +91,7 @@ void free_MNIST_images(MNISTImage *images, uint32_t count);
 
 /**
  * Deallocates an MNIST dataset.
+ * 
  * @param dataset The corresponding MNIST dataset to be deallocated.
  */
 void free_MNIST_dataset(MNISTDataset *dataset);
@@ -97,6 +99,7 @@ void free_MNIST_dataset(MNISTDataset *dataset);
 
 /**
  * Deallocates images.
+ * 
  * @param images The corresponding images to be deallocated.
  * @param count The number of images to be allocated.
  */
@@ -105,6 +108,7 @@ void free_images(Image *images, uint32_t count);
 
 /**
  * Deallocates an image dataset.
+ * 
  * @param dataset The corresponding dataset to be deallocated.
  */
 void free_dataset(ImageDataset *dataset);
@@ -112,6 +116,7 @@ void free_dataset(ImageDataset *dataset);
 
 /**
  * Loads an MNIST dataset given image and label files.
+ * 
  * @param images_file_path The path to image idx file.
  * @param labels_file_path The path to label idx file.
  * @return The loaded MNIST dataset.
@@ -121,6 +126,7 @@ MNISTDataset *load_mnist_dataset(const char *images_file_path, const char *label
 
 /**
  * Shuffles the indices of the samples within the dataset by shuffling only the `view_indices`.
+ * 
  * @param dataset The image dataset input.
  * @param seed The randomization seed.
  */
@@ -129,6 +135,7 @@ void shuffle_indices(ImageDataset *dataset, uint8_t seed);
 
 /**
  * Splits the dataset given range.
+ * 
  * @param dataset The image dataset input.
  * @param begin_index The starting index.
  * @param end_index The end index (not inclusive).
@@ -141,6 +148,7 @@ ImageDataset *split_dataset(ImageDataset *dataset, uint32_t begin_index, uint32_
 
 /**
  * Prepares a batch by storing the images and labels in float and uint8_t arrays, respectively.
+ * 
  * @param X The array to store the images' pixel values in row-major format.
  * @param y The array to store one-hot encodings of the labels corresponding to the images.
  * @param dataset The dataset the batch is prepared from.
