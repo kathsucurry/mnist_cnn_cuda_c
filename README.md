@@ -67,6 +67,8 @@ More info on the tests can be found in the test README file.
 
 ## Expected output
 
+Note that the runtime may vary slightly.
+
 ```
 [INFO] # Samples in training set: 60000
 The train dataset is splitted into training (n=36000) and validation (n=24000).

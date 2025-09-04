@@ -37,13 +37,10 @@
 
 
 ImageDataset *preprocess_images(MNISTDataset *mnist_dataset) {
-    ImageDataset *transformed = add_padding(
-        normalize_pixels(
-            generate_image_dataset(mnist_dataset)
-        ),
-        2
-    );
-    return transformed;
+    ImageDataset *dataset = generate_image_dataset(mnist_dataset);
+    normalize_pixels(dataset);
+    add_padding(dataset, 2);
+    return dataset;
 }
 
 

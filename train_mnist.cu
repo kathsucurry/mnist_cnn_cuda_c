@@ -78,7 +78,7 @@ NetworkOutputs *forward_pass(
 
 float *backward_pass(LayerGradients *gradients, NetworkWeights *network_weights, uint32_t num_samples, float learning_rate) {
     uint8_t num_layers = 5;
-    float *layers_durations_ms = (float *)mallocCheck(num_layers * sizeof(float));
+    float *layers_durations_ms = (float *)malloc_check(num_layers * sizeof(float));
     
     // Go through layers from the second last to the first to update gradients + weights.
     
@@ -96,7 +96,7 @@ float *backward_pass(LayerGradients *gradients, NetworkWeights *network_weights,
     
     // Layer 0: conv2d layer - update both gradients and weights.
     layers_durations_ms[0] = run_conv2d_backward(network_weights->conv2d_weight, &gradients[0], &gradients[1], learning_rate);
-    update_conv2d_const_filters(network_weights->conv2d_weight->values_d, get_tensor_values_size(network_weights->conv2d_weight->num_dim, network_weights->conv2d_weight->dim));
+    update_conv2d_const_filters(network_weights->conv2d_weight->values_d, get_tensor_size(network_weights->conv2d_weight->dim, network_weights->conv2d_weight->dim_size));
 
     return layers_durations_ms;
 }
