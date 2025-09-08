@@ -27,4 +27,14 @@ void gpu_assert(cudaError_t code, int line);
 void *malloc_check(size_t size);
 
 
+/**
+ * Performs a calloc and checks if the allocation succeeds. Aborts the program if
+ *  the allocation fails.
+ * 
+ * @param num The number of objects to be allocated.
+ * @param size The number of bytes of each object to be allocated.
+ */
+void *calloc_check(size_t num, size_t size);
+
+
 #endif

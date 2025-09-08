@@ -12,13 +12,13 @@ __global__ void Conv2DForwardKernel(
     uint32_t num_tiles_h,
     uint32_t in_height, uint32_t in_width
 ) {
-    uint32_t out_height = in_height - kernel_length + 1;
-    uint32_t out_width  = in_width - kernel_length + 1;
+    uint32_t out_height      = in_height - kernel_length + 1;
+    uint32_t out_width       = in_width - kernel_length + 1;
     uint32_t out_channel_idx = blockIdx.x;
-    uint32_t out_height_idx  = (blockIdx.y / num_tiles_h)*TILE_WIDTH + threadIdx.y;
-    uint32_t out_width_idx   = (blockIdx.y % num_tiles_h)*TILE_WIDTH + threadIdx.x;
+    uint32_t out_height_idx  = (blockIdx.y / num_tiles_h) * TILE_WIDTH + threadIdx.y;
+    uint32_t out_width_idx   = (blockIdx.y % num_tiles_h) * TILE_WIDTH + threadIdx.x;
     uint32_t sample_idx      = blockIdx.z;
-    uint32_t out_channels = gridDim.x;
+    uint32_t out_channels    = gridDim.x;
 
     if (out_height_idx >= out_height || out_width_idx >= out_width)
         return;
@@ -59,8 +59,8 @@ __global__ void Conv2DBackwardXGradKernel(
     uint32_t out_height     = in_height - kernel_length + 1;
     uint32_t out_width      = in_width - kernel_length + 1;
     uint32_t in_channel_idx = blockIdx.x;
-    uint32_t in_height_idx  = (blockIdx.y / num_tiles_h)*TILE_WIDTH + threadIdx.y;
-    uint32_t in_width_idx   = (blockIdx.y % num_tiles_h)*TILE_WIDTH + threadIdx.x;
+    uint32_t in_height_idx  = (blockIdx.y / num_tiles_h) * TILE_WIDTH + threadIdx.y;
+    uint32_t in_width_idx   = (blockIdx.y % num_tiles_h) * TILE_WIDTH + threadIdx.x;
     uint32_t sample_idx     = blockIdx.z;
     uint32_t in_channels    = gridDim.x;
 
@@ -104,8 +104,8 @@ __global__ void Conv2DBackwardWGradKernel(
     uint32_t out_height, uint32_t out_width
 ) {
     uint32_t in_channel_idx  = blockIdx.x;
-    uint32_t filter_row_idx  = (blockIdx.y / num_tiles_h)*TILE_WIDTH + threadIdx.y;
-    uint32_t filter_col_idx  = (blockIdx.y % num_tiles_h)*TILE_WIDTH + threadIdx.x;
+    uint32_t filter_row_idx  = (blockIdx.y / num_tiles_h) * TILE_WIDTH + threadIdx.y;
+    uint32_t filter_col_idx  = (blockIdx.y % num_tiles_h) * TILE_WIDTH + threadIdx.x;
     uint32_t out_channel_idx = blockIdx.z;
     uint32_t in_channels     = gridDim.x;
     uint32_t out_channels    = gridDim.z;
@@ -148,10 +148,10 @@ __global__ void SigmoidForwardKernel(
     uint32_t out_height, uint32_t out_width
 ) {
     uint32_t out_channel_idx = blockIdx.x;
-    uint32_t out_height_idx  = (blockIdx.y / num_tiles_h)*TILE_WIDTH + threadIdx.y;
-    uint32_t out_width_idx   = (blockIdx.y % num_tiles_h)*TILE_WIDTH + threadIdx.x;
+    uint32_t out_height_idx  = (blockIdx.y / num_tiles_h) * TILE_WIDTH + threadIdx.y;
+    uint32_t out_width_idx   = (blockIdx.y % num_tiles_h) * TILE_WIDTH + threadIdx.x;
     uint32_t sample_idx      = blockIdx.z;
-    uint32_t num_channels = gridDim.x;
+    uint32_t num_channels    = gridDim.x;
 
     if (out_height_idx >= out_height || out_width_idx >= out_width)
         return;
@@ -175,10 +175,10 @@ __global__ void MultiplyKernel(
     uint32_t feature_height, uint32_t feature_width
 ) {
     uint32_t num_channel_idx = blockIdx.x;
-    uint32_t out_height_idx  = (blockIdx.y / num_tiles_h)*TILE_WIDTH + threadIdx.y;
-    uint32_t out_width_idx   = (blockIdx.y % num_tiles_h)*TILE_WIDTH + threadIdx.x;
+    uint32_t out_height_idx  = (blockIdx.y / num_tiles_h) * TILE_WIDTH + threadIdx.y;
+    uint32_t out_width_idx   = (blockIdx.y % num_tiles_h) * TILE_WIDTH + threadIdx.x;
     uint32_t sample_idx      = blockIdx.z;
-    uint32_t num_channels = gridDim.x;
+    uint32_t num_channels    = gridDim.x;
 
     if (out_height_idx >= feature_height || out_width_idx >= feature_width)
         return;
@@ -201,10 +201,10 @@ __global__ void PoolForwardKernel(
     uint32_t out_height, uint32_t out_width
 ) {
     uint32_t num_channel_idx = blockIdx.x;
-    uint32_t out_height_idx  = (blockIdx.y / num_tiles_h)*TILE_WIDTH + threadIdx.y;
-    uint32_t out_width_idx   = (blockIdx.y % num_tiles_h)*TILE_WIDTH + threadIdx.x;
+    uint32_t out_height_idx  = (blockIdx.y / num_tiles_h) * TILE_WIDTH + threadIdx.y;
+    uint32_t out_width_idx   = (blockIdx.y % num_tiles_h) * TILE_WIDTH + threadIdx.x;
     uint32_t sample_idx      = blockIdx.z;
-    uint32_t num_channels = gridDim.x;
+    uint32_t num_channels    = gridDim.x;
 
     if (out_height_idx >= out_height || out_width_idx >= out_width)
         return;
@@ -251,10 +251,10 @@ __global__ void PoolBackwardKernel(
     uint32_t dY_height, uint32_t dY_width
 ) {
     uint32_t num_channel_idx = blockIdx.x;
-    uint32_t dX_height_idx = (blockIdx.y / num_tiles_h)*TILE_WIDTH + threadIdx.y;
-    uint32_t dX_width_idx  = (blockIdx.y % num_tiles_h)*TILE_WIDTH + threadIdx.x;
+    uint32_t dX_height_idx   = (blockIdx.y / num_tiles_h) * TILE_WIDTH + threadIdx.y;
+    uint32_t dX_width_idx    = (blockIdx.y % num_tiles_h) * TILE_WIDTH + threadIdx.x;
     uint32_t sample_idx      = blockIdx.z;
-    uint32_t num_channels = gridDim.x;
+    uint32_t num_channels    = gridDim.x;
 
     if (dX_height_idx >= dX_height || dX_width_idx >= dX_width)
         return;

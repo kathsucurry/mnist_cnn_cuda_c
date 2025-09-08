@@ -51,7 +51,7 @@ typedef struct {
 typedef struct {
     Tensor *dW_or_W;
     Tensor *dX_or_X;
-    bool is_grad; // True if dW/dX is stored, else it saves W/X for later computation in the chain rule.
+    bool is_grad;
 } LayerGradients;
 
 

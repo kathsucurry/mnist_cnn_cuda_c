@@ -20,3 +20,13 @@ void *malloc_check(size_t size) {
     }
     return malloc_return;
 }
+
+
+void *calloc_check(size_t num, size_t size) {
+    void *calloc_return = calloc(num, size);
+    if (!calloc_return) {
+        fprintf(stderr, "Calloc failed!\n");
+        exit(EXIT_FAILURE);
+    }
+    return calloc_return;
+}
