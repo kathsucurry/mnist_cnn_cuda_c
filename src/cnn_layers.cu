@@ -234,9 +234,9 @@ void run_conv2d_backward(Tensor *conv2d_weights, LayerGradients *grad, LayerGrad
     );
     gpu_error_check(cudaGetLastError());
 
-    Tensor *dX = (Tensor *)malloc_check(sizeof(Tensor));
+    Tensor *dX   = (Tensor *)malloc_check(sizeof(Tensor));
     dX->values_d = dX_d;
-    dX->dim_size  = 4;
+    dX->dim_size = 4;
     dX->dim      = (uint32_t *)malloc_check(4 * sizeof(uint32_t));
     memcpy(dX->dim, X->dim, 4 * sizeof(uint32_t));
 
@@ -259,9 +259,9 @@ void run_conv2d_backward(Tensor *conv2d_weights, LayerGradients *grad, LayerGrad
     );
     gpu_error_check(cudaGetLastError());
 
-    Tensor *dW = (Tensor *)malloc_check(sizeof(Tensor));
+    Tensor *dW   = (Tensor *)malloc_check(sizeof(Tensor));
     dW->values_d = dW_d;
-    dW->dim_size  = 4;
+    dW->dim_size = 4;
     dW->dim      = (uint32_t *)malloc_check(4 * sizeof(uint32_t));
     memcpy(dW->dim, conv2d_weights->dim, 4 * sizeof(uint32_t));
 
@@ -372,7 +372,7 @@ void run_pooling_forward(Tensor *X, uint32_t kernel_length, pooling_type pool_ty
     dim3 dimGrid(num_channels, out_tiles_num, num_samples);
 
     if (pool_type != MEAN && pool_type != MAX) {
-        printf("The inputted pooling type is currently not implemented.");
+        fprintf(stderr, "The inputted pooling type is currently not implemented.");
         free_tensor(X);
         gpu_error_check(cudaFree(Y_d));
         exit(EXIT_FAILURE);
@@ -511,14 +511,14 @@ void run_linear_forward(Tensor *X, Tensor *linear_weights, LayerGradients *grad,
         gpu_error_check(cudaMemcpy(dX_values, linear_weights->values_d, out_features * in_features * sizeof(float), cudaMemcpyHostToDevice));
 
         dW->dim = (uint32_t *)malloc_check(2 * sizeof(uint32_t));
-        dW->dim[0] = num_samples;
-        dW->dim[1] = in_features;
+        dW->dim[0]   = num_samples;
+        dW->dim[1]   = in_features;
         dW->dim_size = 2;
         dW->values_d = dW_values;
 
         dX->dim = (uint32_t *)malloc_check(2 * sizeof(uint32_t));
-        dX->dim[0] = out_features;
-        dX->dim[1] = in_features;
+        dX->dim[0]   = out_features;
+        dX->dim[1]   = in_features;
         dX->dim_size = 2;
         dX->values_d = dX_values;
 
@@ -588,7 +588,7 @@ void run_linear_backward(Tensor *linear_weights, LayerGradients *grad, LayerGrad
  */
 void run_softmax_forward(Tensor *X, uint8_t *y_d, LayerGradients *grad, bool compute_grad) {
     if (X->dim_size != 2) {
-        printf("The input tensor must have 2 dimensions to perform softmax function.\n");
+        fprintf(stderr, "The input tensor must have 2 dimensions to perform softmax function.\n");
         free_tensor(X);
         X = NULL;
         return;

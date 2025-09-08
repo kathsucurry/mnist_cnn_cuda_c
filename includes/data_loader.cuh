@@ -71,6 +71,9 @@ typedef struct {
  *  The labels corresponding to the images.
  * @var ImageDataset::num_samples
  *  The number of samples.
+ * @var ImageDataset::view_indices
+ *  The indices of the object's view; it allows shuffling the indices of the samples
+ *  without having to modify the data directly.
  */
 typedef struct {
     Image *images;

@@ -97,7 +97,7 @@ uint32_t get_tensor_size(const uint32_t *dim, const uint8_t dim_size);
 
 
 /**
- * Generates a tensor object.
+ * Generates a tensor object, which can be freed using `free_tensor` function.
  * 
  * @param X The values of the tensor stored in row-major format.
  * @param dim The dimension array of the tensor.
@@ -122,14 +122,6 @@ Tensor *deep_copy_tensor(Tensor *tensor);
  * @param tensor The tensor to be deallocated.
  */
 void free_tensor(Tensor *tensor);
-
-
-/**
- * Deallocates a LayerGradients object.
- * 
- * @param gradients The gradients to be deallocated.
- */
-void free_layer_gradients(LayerGradients *gradients);
 
 
 /**

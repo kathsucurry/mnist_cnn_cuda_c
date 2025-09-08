@@ -48,7 +48,7 @@ uint8_t *_uint32_to_byte(uint32_t *number) {
 uint32_t _read_uint32_convert_endian(FILE *stream, const uint32_t invalid_return_value, const char *label) {
     uint32_t number;
     if (!fread(&number, sizeof(uint32_t), 1, stream)) {
-        printf("Error in reading the %s.\n", label);
+        fprintf(stderr, "Error in reading the %s.\n", label);
         return invalid_return_value;
     }
 
@@ -66,7 +66,7 @@ uint8_t _load_dimension_from_idx_file_header(FILE *stream) {
     uint8_t *magic_byte_array = _uint32_to_byte(&magic_number);
 
     if (magic_byte_array[1] != MAGIC_UNSIGNED_BYTE) {
-        printf("Unsigned byte (0x08) expected for the basic data type, found: %u\n", magic_byte_array[2]);
+        fprintf(stderr, "Unsigned byte (0x08) expected for the basic data type, found: %u\n", magic_byte_array[2]);
         return invalid_return_value;
     }
 
@@ -78,34 +78,37 @@ uint8_t _load_dimension_from_idx_file_header(FILE *stream) {
 
 MNISTImage *_load_images_from_idx_file(const char *file_path, uint32_t *num_samples) {
     FILE *stream = fopen(file_path, "rb");
+    uint8_t dim_size;
+    uint32_t invalid_return_value, image_height, image_width, image_size;
+    MNISTImage *images;
 
     if (!stream) {
-        printf("Error in opening the image file given path %s\n", file_path);
+        fprintf(stderr, "Error in opening the image file given path %s\n", file_path);
 
         // Get current path.
         char path[200];
-        getcwd(path, 200);
-        printf("Current working directory: %s\n", path);
+        getcwd(path, sizeof(path));
+        fprintf(stderr, "Current working directory: %s\n", path);
 
-        return NULL;
+        goto Error;
     }
 
-    uint8_t dim_size = _load_dimension_from_idx_file_header(stream);
+    dim_size = _load_dimension_from_idx_file_header(stream);
     if (dim_size != MAGIC_IMAGES_DIM) {
-        printf("Expected 3 dimensions for image file, found %u\n", dim_size);
-        return NULL;
+        fprintf(stderr, "Expected 3 dimensions for image file, found %u\n", dim_size);
+        goto Error;
     }
 
-    uint32_t invalid_return_value = 0;
+    invalid_return_value = 0;
     *num_samples = _read_uint32_convert_endian(stream, invalid_return_value, "number of samples");
-    uint32_t image_height = _read_uint32_convert_endian(stream, invalid_return_value, "image height");
-    uint32_t image_width = _read_uint32_convert_endian(stream, invalid_return_value, "image width");
+    image_height = _read_uint32_convert_endian(stream, invalid_return_value, "image height");
+    image_width = _read_uint32_convert_endian(stream, invalid_return_value, "image width");
 
     if (*num_samples == invalid_return_value || image_height == invalid_return_value || image_width == invalid_return_value)
-        return NULL;
+        goto Error;
 
-    uint32_t image_size = image_height * image_width;
-    MNISTImage *images = (MNISTImage *)malloc_check(*num_samples * sizeof(MNISTImage));
+    image_size = image_height * image_width;
+    images = (MNISTImage *)malloc_check(*num_samples * sizeof(MNISTImage));
     for (int i = 0; i < *num_samples; ++i) {
         uint8_t *pixels = (uint8_t *)malloc_check(image_size * sizeof(uint8_t));
         fread(pixels, image_size * sizeof(uint8_t), 1, stream);
@@ -116,33 +119,44 @@ MNISTImage *_load_images_from_idx_file(const char *file_path, uint32_t *num_samp
     fclose(stream);
 
     return images;
+
+Error:
+    fclose(stream);
+    return NULL;
 }
 
 
 uint8_t *_load_labels_from_idx_file(const char *file_path, uint32_t *num_samples) {
     FILE *stream = fopen(file_path, "rb");
+    uint8_t dim_size;
+    uint32_t invalid_return_value;
+    uint8_t *labels;
 
     if (!stream) {
-        printf("Error in opening the image file given path %s\n", file_path);
-        return NULL;
+        fprintf(stderr, "Error in opening the image file given path %s\n", file_path);
+        goto Error;
     }
 
-    uint8_t dim_size = _load_dimension_from_idx_file_header(stream);
+    dim_size = _load_dimension_from_idx_file_header(stream);
     if (dim_size != MAGIC_LABELS_DIM) {
-        printf("Expected 1 dimension for label file, found %u\n", dim_size);
-        return NULL;
+        fprintf(stderr, "Expected 1 dimension for label file, found %u\n", dim_size);
+        goto Error;
     }
 
-    uint32_t invalid_return_value = 0;
+    invalid_return_value = 0;
     *num_samples = _read_uint32_convert_endian(stream, invalid_return_value, "number of samples");
     if (*num_samples == invalid_return_value)
-        return NULL;
+        goto Error;
     
-    uint8_t *labels = (uint8_t *)malloc_check(*num_samples * sizeof(uint8_t));
+    labels = (uint8_t *)malloc_check(*num_samples * sizeof(uint8_t));
     fread(labels, *num_samples * sizeof(uint8_t), 1, stream);
     fclose(stream);
 
     return labels;
+
+Error:
+    fclose(stream);
+    return NULL;
 }
 
 
@@ -150,21 +164,26 @@ MNISTDataset *load_mnist_dataset(const char *images_file_path, const char *label
     uint32_t num_images_samples, num_labels_samples;
     MNISTImage *images = _load_images_from_idx_file(images_file_path, &num_images_samples);
     uint8_t *labels = _load_labels_from_idx_file(labels_file_path, &num_labels_samples);
+    MNISTDataset *dataset;
 
     if (!images || !labels) {
-        printf("The images/labels could not be loaded properly.\n");
-        return NULL;
+        fprintf(stderr, "The images/labels could not be loaded properly.\n");
+        goto Error;
     }
 
     if (num_images_samples != num_labels_samples) {
-        printf("The number of images (n=%u) and labels (n=%u) are not consistent.\n", num_images_samples, num_labels_samples);
+        fprintf(stderr, "The number of images (n=%u) and labels (n=%u) are not consistent.\n", num_images_samples, num_labels_samples);
+        goto Error;
     }
 
-    MNISTDataset *dataset = (MNISTDataset *)malloc_check(sizeof(MNISTDataset));
+    dataset = (MNISTDataset *)malloc_check(sizeof(MNISTDataset));
     dataset->images = images;
     dataset->labels = labels;
     dataset->num_samples = num_images_samples;
     return dataset;
+
+Error:
+    return NULL;
 }
 
 
@@ -184,7 +203,7 @@ void shuffle_indices(ImageDataset *dataset, uint8_t seed) {
 ImageDataset *split_dataset(ImageDataset *dataset, uint32_t begin_index, uint32_t end_index, bool release_images) {
     uint32_t num_samples = end_index - begin_index;
     if (num_samples > dataset->num_samples) {
-        printf("Error in dataset split: number of samples for the new split exceeds the initial number of samples.");
+        fprintf(stderr, "Error in dataset split: number of samples for the new split exceeds the initial number of samples.");
         return NULL;
     }
 
