@@ -64,12 +64,14 @@ typedef struct {
  *  The number of layers within the network.
  * @var NetworkOutputs::output
  *  The tensor output of the last layer.
+ * @var NetworkOutputs::layer_duration_ms
+ *  Time taken by the kernel in each layer in ms.
  */
 typedef struct {
     LayerGradients *gradients;
     uint32_t num_layers;
     Tensor *output;
-    float *layer_durations_ms; // Time taken by each layer in milliseconds.
+    float *layer_durations_ms;
 } NetworkOutputs;
 
 

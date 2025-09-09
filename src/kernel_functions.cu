@@ -8,9 +8,6 @@
 __constant__ float const_conv2d_filters[MAX_FILTER_SIZE];
 
 
-/**
- * (Not optimized) Conv2 kernel implementation, following the method in chapter 16.3 (Fig. 16.13,14).
- */
 __global__ void Conv2DForwardSimpleKernel(
     float *Y, float *X,
     uint32_t kernel_length,

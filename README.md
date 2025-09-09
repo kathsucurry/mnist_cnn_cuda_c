@@ -67,7 +67,7 @@ More info on the tests can be found in the test README file.
 
 ## Expected output
 
-Note that the runtime may vary slightly.
+The following results were generated using NVIDIA GeForce GTX 1080.
 
 ```
 [INFO] # Samples in training set: 60000
