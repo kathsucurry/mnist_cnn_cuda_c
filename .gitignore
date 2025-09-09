@@ -1,6 +1,13 @@
-*.i
-*.ii
-*.gpu
-*.ptx
-*.cubin
-*.fatbin
+# Ignore files without extension.
+# Ignore all
+*
+
+# Unignore all with extensions
+!*.*
+!Makefile
+
+# Unignore all dirs
+!*/
+
+# Ignore all the downloaded data files.
+data/*
