@@ -1,30 +1,54 @@
 #ifndef KERNELS
 #define KERNELS
 
-
 #include <stdint.h>
 
-#define TILE_WIDTH 32
-#define THREAD_COARSENING_FACTOR 8
+#define TILE_WIDTH_L 32
+#define TILE_WIDTH 16
+
+#define THREAD_COARSENING_FACTOR 1
+#define MAX_FILTER_SIZE 512
 #define eps 1e-6
 
 enum pooling_type { MAX, MEAN };
 
+extern __constant__ float const_conv2d_filters[MAX_FILTER_SIZE];
+
 
 /**
- * Conv2d forward kernel implementation, following the method in PMPP chapter 16.3 (Fig. 16.13,14).
+ * Conv2d forward simple kernel implementation, following the method in PMPP chapter 16.3 (Fig. 16.13,14).
  * 
  * @param Y The output tensor stored in row-major format.
  * @param X The input tensor stored in row-major format.
- * @param filters The filters tensor stored in row-major format.
  * @param kernel_length The length of each (square) kernel.
  * @param in_channels The number of input channels.
  * @param num_tiles_h The number of tiles horizontally in the y-axis of the grid; used for computing the output indices.
  * @param in_height The input height.
  * @param in_width The input width.
  */
-__global__ void Conv2DForwardKernel(
-    float *Y, float *X, float *filters,
+__global__ void Conv2DForwardSimpleKernel(
+    float *Y, float *X,
+    uint32_t kernel_length,
+    uint32_t in_channels,
+    uint32_t num_tiles_h,
+    uint32_t in_height, uint32_t in_width
+);
+
+
+
+/**
+ * Conv2d forward kernel implementation with shared memory.
+ * 
+ * @param Y The output tensor stored in row-major format.
+ * @param X The input tensor stored in row-major format.
+ * @param kernel_length The length of each (square) kernel.
+ * @param in_channels The number of input channels.
+ * @param num_tiles_h The number of tiles horizontally in the y-axis of the grid; used for computing the output indices.
+ * @param in_height The input height.
+ * @param in_width The input width.
+ */
+__global__ void Conv2DForwardWithSharedMemoryKernel(
+    float *Y, float *X,
     uint32_t kernel_length,
     uint32_t in_channels,
     uint32_t num_tiles_h,

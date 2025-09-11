@@ -204,7 +204,7 @@ ImageDataset *split_dataset(ImageDataset *dataset, uint32_t begin_index, uint32_
     uint32_t num_samples = end_index - begin_index;
     if (num_samples > dataset->num_samples) {
         fprintf(stderr, "Error in dataset split: number of samples for the new split exceeds the initial number of samples.");
-        return NULL;
+        exit(EXIT_FAILURE);
     }
 
     ImageDataset *split_dataset = (ImageDataset *)malloc_check(sizeof(ImageDataset));

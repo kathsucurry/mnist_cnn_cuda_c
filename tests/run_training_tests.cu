@@ -32,16 +32,15 @@
 #define POOL_KERNEL_LENGTH 2
 #define POOL_TYPE MAX
 #define NUM_SAMPLES 5
+#define DATASET_SPLIT_TRAIN_PROPORTION 0.6
+#define BATCH_SIZE 256
 
 
 ImageDataset *preprocess_images(MNISTDataset *mnist_dataset) {
-    ImageDataset *transformed = add_padding(
-        normalize_pixels(
-            generate_image_dataset(mnist_dataset)
-        ),
-        2
-    );
-    return transformed;
+    ImageDataset *dataset = generate_image_dataset(mnist_dataset);
+    normalize_pixels(dataset);
+    add_padding(dataset, 2);
+    return dataset;
 }
 
 

@@ -5,8 +5,11 @@
 #include "../includes/common.cuh"
 
 
-__global__ void Conv2DForwardKernel(
-    float *Y, float *X, float *filters,
+__constant__ float const_conv2d_filters[MAX_FILTER_SIZE];
+
+
+__global__ void Conv2DForwardSimpleKernel(
+    float *Y, float *X,
     uint32_t kernel_length,
     uint32_t in_channels,
     uint32_t num_tiles_h,
@@ -15,8 +18,8 @@ __global__ void Conv2DForwardKernel(
     uint32_t out_height      = in_height - kernel_length + 1;
     uint32_t out_width       = in_width - kernel_length + 1;
     uint32_t out_channel_idx = blockIdx.x;
-    uint32_t out_height_idx  = (blockIdx.y / num_tiles_h) * TILE_WIDTH + threadIdx.y;
-    uint32_t out_width_idx   = (blockIdx.y % num_tiles_h) * TILE_WIDTH + threadIdx.x;
+    uint32_t out_height_idx  = (blockIdx.y / num_tiles_h) * TILE_WIDTH_L + threadIdx.y;
+    uint32_t out_width_idx   = (blockIdx.y % num_tiles_h) * TILE_WIDTH_L + threadIdx.x;
     uint32_t sample_idx      = blockIdx.z;
     uint32_t out_channels    = gridDim.x;
 
@@ -38,7 +41,7 @@ __global__ void Conv2DForwardKernel(
                     (in_channel_idx * kernel_length * kernel_length) +
                     (k_row * kernel_length) +
                     k_col;
-                value += X[X_idx] * filters[weight_idx];
+                value += X[X_idx] * const_conv2d_filters[weight_idx];
             }
     
     uint32_t Y_idx = (sample_idx * out_channels * out_height * out_width) + 
@@ -46,6 +49,64 @@ __global__ void Conv2DForwardKernel(
             (out_height_idx * out_width) +
             out_width_idx;
     Y[Y_idx] = value;
+}
+
+__global__ void Conv2DForwardWithSharedMemoryKernel(
+    float *Y, float *X,
+    uint32_t kernel_length,
+    uint32_t in_channels,
+    uint32_t grid_height, uint32_t grid_width,
+    uint32_t in_height, uint32_t in_width
+) {
+    uint32_t out_height = in_height - kernel_length + 1;
+    uint32_t out_width  = in_width - kernel_length + 1;
+    uint32_t out_channel_idx = blockIdx.x;
+    uint32_t out_height_idx  = (blockIdx.y / grid_width)*TILE_WIDTH_L + threadIdx.y;
+    uint32_t out_width_idx   = (blockIdx.y % grid_width)*TILE_WIDTH_L + threadIdx.x;
+    uint32_t sample_idx      = blockIdx.z;
+    uint32_t out_channels = gridDim.x;
+
+    __shared__ float shared_array[TILE_WIDTH_L][TILE_WIDTH_L];
+
+    float value = 0.0f;
+    for (uint32_t in_channel_idx = 0; in_channel_idx < in_channels; ++in_channel_idx) {
+        if (out_height_idx < in_height && out_width_idx < in_width) {
+            shared_array[threadIdx.y][threadIdx.x] = X[(sample_idx * in_channels * in_height * in_width) +
+                (in_channel_idx * in_height * in_width) + 
+                (out_height_idx * in_width) + 
+                out_width_idx];
+        } else
+            shared_array[threadIdx.y][threadIdx.x] = 0.0f;
+        __syncthreads();
+
+        for (uint32_t k_row = 0; k_row < kernel_length; ++k_row)
+            for (uint32_t k_col = 0; k_col < kernel_length; ++k_col) {
+                uint32_t in_row = out_height_idx + k_row;
+                uint32_t in_col = out_width_idx + k_col;
+
+                if (in_row < in_height && in_col < in_width) {
+                    uint32_t weight_idx = (out_channel_idx * in_channels * kernel_length * kernel_length) +
+                        (in_channel_idx * kernel_length * kernel_length) +
+                        (k_row * kernel_length) +
+                        k_col;
+                    
+                    if (threadIdx.y + k_row >= TILE_WIDTH_L || threadIdx.x + k_col >= TILE_WIDTH_L) {
+                        value += X[(sample_idx * in_channels * in_height * in_width) + 
+                            (in_channel_idx * in_height * in_width) + 
+                            (in_row * in_width) + 
+                            in_col] * const_conv2d_filters[weight_idx];
+                    } else
+                        value += shared_array[threadIdx.y + k_row][threadIdx.x + k_col] * const_conv2d_filters[weight_idx];
+                }
+            }
+        __syncthreads();
+    }
+    
+    if (out_height_idx < out_height && out_width_idx < out_width) 
+        Y[(sample_idx * out_channels * out_height * out_width) + 
+                (out_channel_idx * out_height * out_width) +
+                (out_height_idx * out_width) +
+                out_width_idx] = value;
 }
 
 
@@ -156,16 +217,13 @@ __global__ void SigmoidForwardKernel(
     if (out_height_idx >= out_height || out_width_idx >= out_width)
         return;
 
-    for (uint32_t row = 0; row < out_height; ++row)
-        for (uint32_t col = 0; col < out_width; ++col) {
-            uint32_t index = (sample_idx * num_channels * out_height * out_width) +
-                (out_channel_idx * out_height * out_width) +
-                (row * out_width) +
-                col;
-            float value = 1.0 / (1 + expf(-1 * X[index]));
-            Y[index] = value;
-            grad[index] = value * (1 - value);
-        }
+    uint32_t index = (sample_idx * num_channels * out_height * out_width) +
+        (out_channel_idx * out_height * out_width) +
+        (out_height_idx * out_width) +
+        out_width_idx;
+    float value = 1.0 / (1 + expf(-1 * X[index]));
+    Y[index] = value;
+    grad[index] = value * (1 - value);
 }
 
 
